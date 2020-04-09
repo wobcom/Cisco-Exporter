@@ -56,6 +56,7 @@ Multiple collectors are available, you **must** specify which one to use.
 * **`interfaces`**: Collects interface counters. Note that you can optionally limit which interfaces to scrape.
 * **`mpls`**: Collects mpls specific metrics by both executing `show mpls forwarding-table` and `show mpls memory`.
 * **`memory`**: Collects metrics about memory usage by running `show system resources` (NX-OS) or `show memory statistics`.
+* **`nat`**: Collectrs metrics about network address translation by scraping the outputs of `show ip nat statistics` and multiple `show ip nat pool name ...`.
 * **`optics`**: Collects transceiver status by issueing a `show interfaces transceiver detail` (IOS and NX-OS) or a `show inventory raw` followed by multiple `show hw-module subslot ...` commands on IOS XE.
 * **`pppoe`**: Collects PPPoE statistics by issueing a `show pppoe statistics`.
 * **`vlans`**: Collects VLAN counters returned by a `show vlans`.
