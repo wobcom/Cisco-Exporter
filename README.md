@@ -60,6 +60,7 @@ Multiple collectors are available, you **must** specify which one to use.
 * **`optics`**: Collects transceiver status by issueing a `show interfaces transceiver detail` (IOS and NX-OS) or a `show inventory raw` followed by multiple `show hw-module subslot ...` commands on IOS XE.
 * **`pppoe`**: Collects PPPoE statistics by issueing a `show pppoe statistics`.
 * **`vlans`**: Collects VLAN counters returned by a `show vlans`.
+* **`nat`**: Collects general NAT counters `show ip nat statistics` and NAT Pool counters `show ip nat pool name $name`.
 
 ## Implementation details
 Upon start cisco-exporter will try to connect with all the scrape targets.
