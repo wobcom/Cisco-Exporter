@@ -22,6 +22,8 @@ import (
 	"gitlab.com/wobcom/cisco-exporter/users"
 	"gitlab.com/wobcom/cisco-exporter/vlans"
 
+	"github.com/pkg/errors"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 )
@@ -30,13 +32,17 @@ const prefix = "cisco_"
 
 var (
 	upDesc                      *prometheus.Desc
+	versionDesc                 *prometheus.Desc
 	errorsDesc                  *prometheus.Desc
+	retryCountDesc              *prometheus.Desc
 	scrapeCollectorDurationDesc *prometheus.Desc
 	scrapeDurationDesc          *prometheus.Desc
 )
 
 func init() {
 	upDesc = prometheus.NewDesc(prefix+"up", "Scrape of target was successful", []string{"target"}, nil)
+	versionDesc = prometheus.NewDesc(prefix+"version_info", "Information about the running operating system", []string{"target", "os_name"}, nil)
+	retryCountDesc = prometheus.NewDesc(prefix+"retry_total", "Counts the retries of a collector", []string{"target", "collector"}, nil)
 	errorsDesc = prometheus.NewDesc(prefix+"collector_errors", "Error counter of a scrape by collector and target", []string{"target", "collector"}, nil)
 	scrapeDurationDesc = prometheus.NewDesc(prefix+"collector_duration_seconds", "Duration of a collector scrape for one target", []string{"target"}, nil)
 	scrapeCollectorDurationDesc = prometheus.NewDesc(prefix+"collect_duration_seconds", "Duration of a scrape by collector and target", []string{"target", "collector"}, nil)
@@ -99,7 +105,9 @@ func newCiscoCollector(devices []*config.DeviceConfig, connectionManager *connec
 					continue
 				}
 			}
-			collectorsForDevice[device.Host] = append(collectorsForDevice[device.Host], collector)
+			if collector != nil {
+				collectorsForDevice[device.Host] = append(collectorsForDevice[device.Host], collector)
+			}
 		}
 	}
 
@@ -116,6 +124,8 @@ func newCiscoCollector(devices []*config.DeviceConfig, connectionManager *connec
 // the last descriptor has been sent.
 func (c *CiscoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- upDesc
+	ch <- versionDesc
+	ch <- retryCountDesc
 	ch <- errorsDesc
 	ch <- scrapeDurationDesc
 	ch <- scrapeCollectorDurationDesc
@@ -138,52 +148,78 @@ func (c *CiscoCollector) Collect(ch chan<- prometheus.Metric) {
 	wg.Wait()
 }
 
+func (c *CiscoCollector) createCollectContext(device *config.DeviceConfig, ch chan<- prometheus.Metric) (*collector.CollectContext, error) {
+	connection, err := c.connectionManager.GetConnection(device)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Could not get connection for device %s: %v", device.Host, err)
+	}
+
+	return &collector.CollectContext{
+		Connection:  connection,
+		LabelValues: []string{device.Host},
+		Metrics:     ch,
+		Errors:      make(chan error),
+		Done:        make(chan struct{}),
+	}, nil
+}
+
+func runCollector(collector collector.Collector, collectorContext *collector.CollectContext) []error {
+	errs := make([]error, 0)
+
+	go collector.Collect(collectorContext)
+
+	for {
+		select {
+		case <-collectorContext.Done:
+			return errs
+		case err := <-collectorContext.Errors:
+			log.Errorf("Error while running collector %s on device %s: %v", collector.Name(), collectorContext.Connection.Device.Host, err)
+			errs = append(errs, err)
+			continue
+		}
+	}
+}
+
 func (c *CiscoCollector) collectForDevice(device *config.DeviceConfig, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	hostLabel := []string{device.Host}
-
-	startTime := time.Now()
 	ciscoUp := 1.0
+	startTime := time.Now()
+
 	defer func() {
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(startTime).Seconds(), hostLabel...)
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(startTime).Seconds(), device.Host)
 		ch <- prometheus.MustNewConstMetric(upDesc, prometheus.GaugeValue, ciscoUp, device.Host)
+		ch <- prometheus.MustNewConstMetric(versionDesc, prometheus.GaugeValue, 1, device.Host, config.OSVersionToString(device.OSVersion))
 	}()
 
 	for _, specificCollector := range c.collectorsForDevice[device.Host] {
-		if time.Since(startTime) > *scrapeTimeout {
-			log.Errorf("Scrape timeout reached for '%s'", device.Host)
-			return
-		}
 		startTimeCollector := time.Now()
-		connection, err := c.connectionManager.GetConnection(device)
-		if err != nil {
-			ciscoUp = 0
-			log.Errorf("Could not get connection to '%s': %v", device.Host, err)
-			break
-		}
-		ctx := &collector.CollectContext{
-			Connection:  connection,
-			LabelValues: hostLabel,
-			Metrics:     ch,
-			Errors:      make(chan error),
-			Done:        make(chan struct{}),
+		totalCollectorErrors := 0.0
+		success := false
+
+		for retryCount := 0; retryCount < 2 && !success; retryCount++ {
+			if time.Since(startTime) > *scrapeTimeout {
+				log.Errorf("Ran into scrape timeout for device %s", device.Host)
+				return
+			}
+
+			collectContext, err := c.createCollectContext(device, ch)
+			if err != nil {
+				ciscoUp = 0
+				log.Errorf("Could not create CollectContext for device %s: %v", device.Host, err)
+				continue
+			} else {
+				ciscoUp = 1
+			}
+
+			errs := runCollector(specificCollector, collectContext)
+			totalCollectorErrors += float64(len(errs))
+			success = len(errs) == 0
 		}
 
-		errorCount := 0.0
-		go specificCollector.Collect(ctx)
-	WaitForCollectorLoop:
-		for {
-			select {
-			case <-ctx.Done:
-				ch <- prometheus.MustNewConstMetric(errorsDesc, prometheus.GaugeValue, errorCount, append(hostLabel, specificCollector.Name())...)
-				elapsedSeconds := time.Since(startTimeCollector).Seconds()
-				ch <- prometheus.MustNewConstMetric(scrapeCollectorDurationDesc, prometheus.GaugeValue, elapsedSeconds, append(hostLabel, specificCollector.Name())...)
-				break WaitForCollectorLoop
-			case err := <-ctx.Errors:
-				log.Errorf("Error running collector %s on %s: %v", specificCollector.Name(), device.Host, err)
-				errorCount++
-			}
-		}
+		labels := []string{device.Host, specificCollector.Name()}
+		elapsedSeconds := time.Since(startTimeCollector).Seconds()
+		ch <- prometheus.MustNewConstMetric(errorsDesc, prometheus.GaugeValue, totalCollectorErrors, labels...)
+		ch <- prometheus.MustNewConstMetric(scrapeCollectorDurationDesc, prometheus.GaugeValue, elapsedSeconds, labels...)
 	}
 }

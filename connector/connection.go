@@ -114,7 +114,7 @@ func (conn *SSHConnection) IdentifyOSVersion() (config.OSVersion, error) {
 			return detectedVersion, lastErr
 		case line := <-sshCtx.Output:
 			for fingerprint, version := range versions {
-				if strings.Contains(line, fingerprint) {
+				if strings.Contains(line, fingerprint) && detectedVersion == config.INVALID {
 					detectedVersion = version
 				}
 			}

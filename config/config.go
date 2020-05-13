@@ -31,6 +31,19 @@ const (
 	NXOS OSVersion = 3
 )
 
+// OSVersionToString converts OSVersion to a string
+func OSVersionToString(version OSVersion) string {
+	switch version {
+	case IOSXE:
+		return "ios-xe"
+	case IOS:
+		return "ios"
+	case NXOS:
+		return "nx-os"
+	}
+	return "invalid"
+}
+
 // DeviceConfig is used to read device configuration from the config file
 // DeviceConfig describe how to connect to a remote device and what metrics
 // to extract from the remote device.
