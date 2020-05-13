@@ -9,7 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const prefix string = "cisco_optics_nxos_"
+const prefix string = "cisco_optics_"
 
 var (
 	temperatureDesc   *prometheus.Desc
@@ -39,7 +39,7 @@ func init() {
 	l1 := []string{"target", "port", "lane"}
 	temperatureDesc = prometheus.NewDesc(prefix+"temperature_celsius", "Temperature in Celsius", l, nil)
 	voltageDesc = prometheus.NewDesc(prefix+"voltage_volts", "Voltage in Volts", l, nil)
-	currentDesc = prometheus.NewDesc(prefix+"current_amps", "Current in Amps", l, nil)
+	currentDesc = prometheus.NewDesc(prefix+"current_milliamps", "Current in milli Amps", l, nil)
 	transmitPowerDesc = prometheus.NewDesc(prefix+"tx_power_dbm", "Transmit power in dBm", l, nil)
 	receivePowerDesc = prometheus.NewDesc(prefix+"rx_power_dbm", "Receive power in dBm", l, nil)
 	faultcountDesc = prometheus.NewDesc(prefix+"fault_count_total", "Fault count", l1, nil)
@@ -89,7 +89,7 @@ func generateMetrics(ctx *collector.CollectContext, transceiver *NXOSTransceiver
 		ctx.Metrics <- prometheus.MustNewConstMetric(voltageDesc, prometheus.GaugeValue, value, append(l, readingType)...)
 	}
 	for readingType, value := range transceiver.Current {
-		ctx.Metrics <- prometheus.MustNewConstMetric(currentDesc, prometheus.GaugeValue, value/1000, append(l, readingType)...)
+		ctx.Metrics <- prometheus.MustNewConstMetric(currentDesc, prometheus.GaugeValue, value, append(l, readingType)...)
 	}
 	for readingType, value := range transceiver.TransmitPower {
 		ctx.Metrics <- prometheus.MustNewConstMetric(transmitPowerDesc, prometheus.GaugeValue, value, append(l, readingType)...)
