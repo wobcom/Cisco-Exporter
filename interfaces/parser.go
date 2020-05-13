@@ -17,6 +17,7 @@ func Parse(sshCtx *connector.SSHCommandContext, interfaces chan *Interface, done
 	deviceNameRegexp := regexp.MustCompile(`^([a-zA-Z0-9\/\.-]+) is.*$`)
 	adminStatusRegexp := regexp.MustCompile(`^.+ is (administratively)?\s*(up|down).*, line protocol is.*$`)
 	adminStatusNXOSRegexp := regexp.MustCompile(`^\S+ is (up|down)(?:\s|,)?(\(Administratively down\))?.*$`)
+	adminStatusNXOSRegexp1 := regexp.MustCompile(`^admin state is (up|down)`)
 	descRegexp := regexp.MustCompile(`^\s+Description: (.*)$`)
 	dropsRegexp := regexp.MustCompile(`^\s+Input queue: \d+\/\d+\/(\d+)\/\d+ .+ Total output drops: (\d+)$`)
 	inputBytesRegexp := regexp.MustCompile(`^\s+\d+ (?:packets input,|input packets)\s+(\d+) bytes.*$`)
@@ -65,6 +66,8 @@ func Parse(sshCtx *connector.SSHCommandContext, interfaces chan *Interface, done
 					current.AdminStatus = "down"
 				}
 				current.OperStatus = matches[1]
+			} else if matches := adminStatusNXOSRegexp1.FindStringSubmatch(line); matches != nil {
+				current.AdminStatus = matches[1]
 			} else if matches := descRegexp.FindStringSubmatch(line); matches != nil {
 				current.Description = matches[1]
 			} else if matches := macRegexp.FindStringSubmatch(line); matches != nil {
