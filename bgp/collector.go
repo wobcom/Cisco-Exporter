@@ -14,6 +14,7 @@ const prefix string = "cisco_bgp_"
 var (
 	bgpVersionDesc        *prometheus.Desc
 	stateDesc             *prometheus.Desc
+	adminShutdownDesc     *prometheus.Desc
 	holdTimeDesc          *prometheus.Desc
 	keepaliveIntervalDesc *prometheus.Desc
 
@@ -57,6 +58,7 @@ func init() {
 	l := []string{"target", "remote_as", "remote_ip", "description"}
 	bgpVersionDesc = prometheus.NewDesc(prefix+"version", "BGP version", l, nil)
 	stateDesc = prometheus.NewDesc(prefix+"state_info", "BGP session state", append(l, "state"), nil)
+	adminShutdownDesc = prometheus.NewDesc(prefix+"admin_shutdown_info", "1 if session is administratively shutdown", l, nil)
 	holdTimeDesc = prometheus.NewDesc(prefix+"holdtime_seconds", "Hold time in seconds", l, nil)
 	keepaliveIntervalDesc = prometheus.NewDesc(prefix+"keepalive_interval_seconds", "Keepalive interval in seconds", l, nil)
 
@@ -87,6 +89,7 @@ func init() {
 func (*Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- bgpVersionDesc
 	ch <- stateDesc
+	ch <- adminShutdownDesc
 	ch <- holdTimeDesc
 	ch <- keepaliveIntervalDesc
 
@@ -145,6 +148,7 @@ func generateMetrics(ctx *collector.CollectContext, neighbor *Neighbor) {
 	ctx.Metrics <- prometheus.MustNewConstMetric(bgpVersionDesc, prometheus.GaugeValue, neighbor.BGPVersion, l...)
 	stateDescLabels := append(l, neighbor.State)
 	ctx.Metrics <- prometheus.MustNewConstMetric(stateDesc, prometheus.GaugeValue, 1, stateDescLabels...)
+	ctx.Metrics <- prometheus.MustNewConstMetric(adminShutdownDesc, prometheus.GaugeValue, neighbor.AdminShutdown, l...)
 	ctx.Metrics <- prometheus.MustNewConstMetric(holdTimeDesc, prometheus.GaugeValue, neighbor.HoldTime, l...)
 	ctx.Metrics <- prometheus.MustNewConstMetric(keepaliveIntervalDesc, prometheus.GaugeValue, neighbor.KeepaliveInterval, l...)
 

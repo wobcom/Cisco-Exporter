@@ -16,6 +16,7 @@ func Parse(sshCtx *connector.SSHCommandContext, neighbors chan *Neighbor, done c
 	descriptionRegexp := regexp.MustCompile(`^ Description: (.*)$`)
 	bgpVersionRegexp := regexp.MustCompile(`^  BGP version (\d+\.?\d?),`)
 	bgpStateRegexp := regexp.MustCompile(`^  BGP state = (\S*),`)
+	bgpAdminShutdownRegexp := regexp.MustCompile(`^\s+Administratively shut down`)
 	timersRegexp := regexp.MustCompile(`hold time is (\d+), keepalive interval is (\d+)`)
 	opensRegexp := regexp.MustCompile(`^    Opens:\s+(\d+)\s+(\d+)`)
 	notificationsRegexp := regexp.MustCompile(`^    Notifications:\s+(\d+)\s+(\d+)`)
@@ -58,6 +59,10 @@ func Parse(sshCtx *connector.SSHCommandContext, neighbors chan *Neighbor, done c
 			}
 			if current.RemoteIP == "" {
 				continue
+			}
+
+			if bgpAdminShutdownRegexp.MatchString(line) {
+				current.AdminShutdown = 1
 			}
 
 			if matches := descriptionRegexp.FindStringSubmatch(line); matches != nil {

@@ -6,8 +6,9 @@ type Neighbor struct {
 	RemoteIP    string
 	Description string
 
-	BGPVersion float64
-	State      string
+	BGPVersion    float64
+	State         string
+	AdminShutdown float64
 
 	HoldTime          float64
 	KeepaliveInterval float64
