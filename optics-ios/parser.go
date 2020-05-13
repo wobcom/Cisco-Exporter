@@ -10,7 +10,7 @@ import (
 func (c *Collector) Parse(sshCtx *connector.SSHCommandContext, transceiversChan chan *Transceiver, done chan struct{}) {
 	transceivers := make(map[string]*Transceiver)
 	newMetricRegexp := regexp.MustCompile(`\s+(Temperature|Voltage|Current|Transmit Power|Receive Power)`)
-	valuesRegexp := regexp.MustCompile(`^(\S+)[\s\+{0,2}\-{0,2}]*(\d+\.?\d*)[\s\+{0,2}\-{0,2}]*(\d+\.?\d*)[\s\+{0,2}\-{0,2}]*(\d+\.?\d*)[\s\+{0,2}\-{0,2}]*(\d+\.?\d*)[\s\+{0,2}\-{0,2}]*(\d+\.?\d*)`)
+	valuesRegexp := regexp.MustCompile(`^(\S+)[\s\+\-]*?(\-?\d+\.?\d*)[\s\+\-]*?(\-?\d+\.?\d*)[\s\+\-]*?(\-?\d+\.?\d*)[\s\+\-]*?(\-?\d+\.?\d*)[\s\+\-]*?(\-?\d+\.?\d*)`)
 
 	defer func() {
 		for transceiverName, transceiver := range transceivers {

@@ -37,7 +37,7 @@ func init() {
 	l := []string{"target", "port", "reading_type"}
 	temperatureDesc = prometheus.NewDesc(prefix+"temperature_celsius", "Temperature in Celsius", l, nil)
 	voltageDesc = prometheus.NewDesc(prefix+"voltage_volts", "Voltage in Volts", l, nil)
-	currentDesc = prometheus.NewDesc(prefix+"current_amps", "Current in Amps", l, nil)
+	currentDesc = prometheus.NewDesc(prefix+"current_milliamps", "Current in milli Amps", l, nil)
 	transmitPowerDesc = prometheus.NewDesc(prefix+"tx_power_dbm", "Transmit power in dBm", l, nil)
 	receivePowerDesc = prometheus.NewDesc(prefix+"rx_power_dbm", "Receive power in dBm", l, nil)
 }
@@ -85,7 +85,7 @@ func generateMetrics(ctx *collector.CollectContext, transceiver *Transceiver) {
 		ctx.Metrics <- prometheus.MustNewConstMetric(voltageDesc, prometheus.GaugeValue, value, append(l, readingType)...)
 	}
 	for readingType, value := range transceiver.Current {
-		ctx.Metrics <- prometheus.MustNewConstMetric(currentDesc, prometheus.GaugeValue/1000, value, append(l, readingType)...)
+		ctx.Metrics <- prometheus.MustNewConstMetric(currentDesc, prometheus.GaugeValue, value, append(l, readingType)...)
 	}
 	for readingType, value := range transceiver.TransmitPower {
 		ctx.Metrics <- prometheus.MustNewConstMetric(transmitPowerDesc, prometheus.GaugeValue, value, append(l, readingType)...)
