@@ -102,7 +102,7 @@ func collectNXOS(ctx *collector.CollectContext) {
 	sshCtx := connector.NewSSHCommandContext("show environment")
 	go ctx.Connection.RunCommand(sshCtx)
 
-	fanRegexp := regexp.MustCompile(`(Fan.*?)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)`)
+	fanRegexp := regexp.MustCompile(`^(Fan\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$`)
 	powerSupplyRegexp := regexp.MustCompile(`(\d+)\s+(\S+)\s+(\d+) W\s+(\d+) W\s+(\d+) W\s+(\S+)`)
 	temperatureRegexp := regexp.MustCompile(`(\d+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)`)
 
@@ -114,7 +114,9 @@ func collectNXOS(ctx *collector.CollectContext) {
 			ctx.Errors <- errors.Wrapf(err, "Error scraping environment: %v", err)
 		case line := <-sshCtx.Output:
 			if matches := fanRegexp.FindStringSubmatch(line); matches != nil {
-				ctx.Metrics <- prometheus.MustNewConstMetric(fanStatusMetricDesc, prometheus.GaugeValue, 1, append(ctx.LabelValues, matches[1:6]...)...)
+				fanLabels := matches[1:6]
+				fanLabels[4] = strings.TrimSpace(strings.ToLower(fanLabels[4]))
+				ctx.Metrics <- prometheus.MustNewConstMetric(fanStatusMetricDesc, prometheus.GaugeValue, 1, append(ctx.LabelValues, fanLabels...)...)
 			} else if matches := powerSupplyRegexp.FindStringSubmatch(line); matches != nil {
 				powerSupplyLabels := append(ctx.LabelValues, matches[1:3]...)
 				ctx.Metrics <- prometheus.MustNewConstMetric(powerSupplyOutputDesc, prometheus.GaugeValue, util.Str2float64(matches[3]), powerSupplyLabels...)
