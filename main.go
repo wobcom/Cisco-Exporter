@@ -138,7 +138,7 @@ func handleMetricsRequest(w http.ResponseWriter, request *http.Request) {
 		}
 		collector = newCiscoCollector([]*config.DeviceConfig{device}, connectionManager)
 	} else {
-		devices := make([]*config.DeviceConfig, len(configuration.Devices))
+		devices := make([]*config.DeviceConfig, 0)
 		for _, device := range configuration.Devices {
 			devices = append(devices, device)
 		}
