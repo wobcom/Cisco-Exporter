@@ -1,6 +1,7 @@
 image: golang:1.14
 
 stages:
+  - build
   - verify
 
 default:
@@ -10,6 +11,16 @@ default:
     - ln -s /go/src/gitlab.com/wobcom/cisco-exporter /go/src/_/builds/cisco-exporter
     - go get -v -d ./...
     - go build -i -v gitlab.com/wobcom/cisco-exporter
+  artifacts:
+    paths:
+      - /go/src/_/builds/cisco-exporter
+
+compile:
+  stage: build
+  tags:
+    - docker
+  script:
+    - "true"
   artifacts:
     paths:
       - /go/src/_/builds/cisco-exporter
