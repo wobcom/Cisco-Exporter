@@ -10,10 +10,7 @@ default:
     - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/wobcom/cisco-exporter
     - ln -s /go/src/gitlab.com/wobcom/cisco-exporter /go/src/_/builds/cisco-exporter
     - go get -v -d ./...
-    - go build -i -v gitlab.com/wobcom/cisco-exporter
-  artifacts:
-    paths:
-      - /go/src/_/builds/cisco-exporter
+    - go build -i -v gitlab.com/wobcom/cisco-exporter -o $CI_PROJECT_DIR/cisco-exporter
 
 compile:
   stage: build
@@ -23,7 +20,7 @@ compile:
     - "true"
   artifacts:
     paths:
-      - /go/src/_/builds/cisco-exporter
+      - $CI_PROJECT_DIR/cisco-exporter
 
 fmt:
   stage: verify
