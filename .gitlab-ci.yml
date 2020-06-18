@@ -10,6 +10,9 @@ default:
     - ln -s /go/src/gitlab.com/wobcom/cisco-exporter /go/src/_/builds/cisco-exporter
     - go get -v -d ./...
     - go build -i -v gitlab.com/wobcom/cisco-exporter
+  artifacts:
+    paths:
+      - /go/src/_/builds/cisco-exporter
 
 fmt:
   stage: verify
