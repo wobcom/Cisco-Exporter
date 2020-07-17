@@ -1,16 +1,11 @@
 package environment
 
 import (
-	"regexp"
-	"strconv"
-	"strings"
+    "fmt"
 
 	"gitlab.com/wobcom/cisco-exporter/collector"
-	"gitlab.com/wobcom/cisco-exporter/config"
 	"gitlab.com/wobcom/cisco-exporter/connector"
-	"gitlab.com/wobcom/cisco-exporter/util"
-
-	"github.com/pkg/errors"
+	"gitlab.com/wobcom/cisco-exporter/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -89,148 +84,14 @@ func (c *Collector) Collect(ctx *collector.CollectContext) {
 		ctx.Done <- struct{}{}
 	}()
 
-	if ctx.Connection.Device.OSVersion == config.NXOS {
-		collectNXOS(ctx)
-	} else if ctx.Connection.Device.OSVersion == config.IOS {
-		collectIOS(ctx)
-	} else {
-		collectIOSXE(ctx)
-	}
-}
+    parser, err := getParserForOSversion(ctx.Connection.Device.OSVersion)
+    if err != nil {
+        ctx.Errors <- fmt.Errorf("Could not get an environment parser for OS Version '%s': %v", config.OSVersionToString(ctx.Connection.Device.OSVersion), err)
+        return
+    }
 
-func collectNXOS(ctx *collector.CollectContext) {
-	sshCtx := connector.NewSSHCommandContext("show environment")
-	go ctx.Connection.RunCommand(sshCtx)
+    sshCtx := connector.NewSSHCommandContext("show environment")
+    go ctx.Connection.RunCommand(sshCtx)
 
-	fanRegexp := regexp.MustCompile(`^(Fan\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$`)
-	powerSupplyRegexp := regexp.MustCompile(`(\d+)\s+(\S+)\s+(\d+) W\s+(\d+) W\s+(\d+) W\s+(\S+)`)
-	temperatureRegexp := regexp.MustCompile(`(\d+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)`)
-
-	for {
-		select {
-		case <-sshCtx.Done:
-			return
-		case err := <-sshCtx.Errors:
-			ctx.Errors <- errors.Wrapf(err, "Error scraping environment: %v", err)
-		case line := <-sshCtx.Output:
-			if matches := fanRegexp.FindStringSubmatch(line); matches != nil {
-				fanLabels := matches[1:6]
-				fanLabels[4] = strings.TrimSpace(strings.ToLower(fanLabels[4]))
-				ctx.Metrics <- prometheus.MustNewConstMetric(fanStatusMetricDesc, prometheus.GaugeValue, 1, append(ctx.LabelValues, fanLabels...)...)
-			} else if matches := powerSupplyRegexp.FindStringSubmatch(line); matches != nil {
-				powerSupplyLabels := append(ctx.LabelValues, matches[1:3]...)
-				ctx.Metrics <- prometheus.MustNewConstMetric(powerSupplyOutputDesc, prometheus.GaugeValue, util.Str2float64(matches[3]), powerSupplyLabels...)
-				ctx.Metrics <- prometheus.MustNewConstMetric(powerSupplyInputDesc, prometheus.GaugeValue, util.Str2float64(matches[4]), powerSupplyLabels...)
-				ctx.Metrics <- prometheus.MustNewConstMetric(powerSupplyCapacityDesc, prometheus.GaugeValue, util.Str2float64(matches[5]), powerSupplyLabels...)
-				powerSupplyStatusLabels := append(ctx.LabelValues, matches[1], matches[2], strings.TrimSpace(strings.ToLower(matches[6])))
-				ctx.Metrics <- prometheus.MustNewConstMetric(powerSupplyStatusDesc, prometheus.GaugeValue, 1, powerSupplyStatusLabels...)
-			} else if matches := temperatureRegexp.FindStringSubmatch(line); matches != nil {
-				temperatureLabels := append(ctx.LabelValues, matches[1:3]...)
-				ctx.Metrics <- prometheus.MustNewConstMetric(temperatureDesc, prometheus.GaugeValue, util.Str2float64(matches[5]), temperatureLabels...)
-				ctx.Metrics <- prometheus.MustNewConstMetric(temperatureThresholdDesc, prometheus.GaugeValue, util.Str2float64(matches[3]), append(temperatureLabels, "major")...)
-				ctx.Metrics <- prometheus.MustNewConstMetric(temperatureThresholdDesc, prometheus.GaugeValue, util.Str2float64(matches[4]), append(temperatureLabels, "minor")...)
-			}
-		}
-	}
-}
-
-func collectIOS(ctx *collector.CollectContext) {
-	sshCtx := connector.NewSSHCommandContext("show env all")
-	go ctx.Connection.RunCommand(sshCtx)
-
-	temperatureRegexp := regexp.MustCompile(`(.*) Temperature Value: (\d+\.?\d*)`)
-	temperatureThresholdRegexp := regexp.MustCompile(`(.*) Temperature (.*) Threshold: (\-?\d+\.?\d+)`)
-	systemTemperatureThresholdRegexp := regexp.MustCompile(`(.*) Threshold\s+: (\-?\d+\.?\d+) Degree`)
-	fanRegexp := regexp.MustCompile(`FAN in (.*) is (\S+)`)
-	powerSupplyStatusRegexp := regexp.MustCompile(`Power Supply Status: (.*)`)
-	powerSupplyStatusRegexp1 := regexp.MustCompile(`POWER SUPPLY (.*) is (.*)`)
-
-	for {
-		select {
-		case <-sshCtx.Done:
-			return
-		case err := <-sshCtx.Errors:
-			ctx.Errors <- errors.Wrapf(err, "Error scraping environment: %v", err)
-		case line := <-sshCtx.Output:
-			if matches := temperatureRegexp.FindStringSubmatch(line); matches != nil {
-				temperatureLabels := append(ctx.LabelValues, "", matches[1])
-				ctx.Metrics <- prometheus.MustNewConstMetric(temperatureDesc, prometheus.GaugeValue, util.Str2float64(matches[2]), temperatureLabels...)
-			} else if matches := temperatureThresholdRegexp.FindStringSubmatch(line); matches != nil {
-				temperatureThresholdLabels := append(ctx.LabelValues, "", matches[1], matches[2])
-				ctx.Metrics <- prometheus.MustNewConstMetric(temperatureThresholdDesc, prometheus.GaugeValue, util.Str2float64(matches[3]), temperatureThresholdLabels...)
-			} else if matches := systemTemperatureThresholdRegexp.FindStringSubmatch(line); matches != nil {
-				temperatureThresholdLabels := append(ctx.LabelValues, "", "System", matches[1])
-				ctx.Metrics <- prometheus.MustNewConstMetric(temperatureThresholdDesc, prometheus.GaugeValue, util.Str2float64(matches[2]), temperatureThresholdLabels...)
-			} else if matches := fanRegexp.FindStringSubmatch(line); matches != nil {
-				fanLabels := append(ctx.LabelValues, matches[1], "", "", "", strings.TrimSpace(strings.ToLower(matches[2])))
-				ctx.Metrics <- prometheus.MustNewConstMetric(fanStatusMetricDesc, prometheus.GaugeValue, 1, fanLabels...)
-			} else if matches := powerSupplyStatusRegexp.FindStringSubmatch(line); matches != nil {
-				powerSupplyStatusLabels := append(ctx.LabelValues, "", "", strings.TrimSpace(strings.ToLower(matches[1])))
-				ctx.Metrics <- prometheus.MustNewConstMetric(powerSupplyStatusDesc, prometheus.GaugeValue, 1, powerSupplyStatusLabels...)
-			} else if matches := powerSupplyStatusRegexp1.FindStringSubmatch(line); matches != nil {
-				powerSupplyStatusLabels := append(ctx.LabelValues, matches[1], "", strings.TrimSpace(strings.ToLower(matches[2])))
-				ctx.Metrics <- prometheus.MustNewConstMetric(powerSupplyStatusDesc, prometheus.GaugeValue, 1, powerSupplyStatusLabels...)
-			}
-		}
-	}
-}
-
-func collectIOSXE(ctx *collector.CollectContext) {
-	sshCtx := connector.NewSSHCommandContext("show environment")
-	go ctx.Connection.RunCommand(sshCtx)
-
-	matchesCount := 0
-
-	alarmsRegex := regexp.MustCompile(`^[nN]umber of ([a-zA-Z]*)\s*\S*\s*(\d*)`)
-	seperatorRegex := regexp.MustCompile(`----------------------------`)
-	readingRegex := regexp.MustCompile(`^(\d+)\s+(.+)`)
-
-	seperatorFound := false
-	counter := make(map[string]int)
-
-	for {
-		select {
-		case <-sshCtx.Done:
-			if matchesCount == 0 {
-				ctx.Errors <- errors.New("No environment metric was extracted")
-			}
-			return
-		case err := <-sshCtx.Errors:
-			ctx.Errors <- errors.Wrapf(err, "Error scraping environment: %v", err)
-		case line := <-sshCtx.Output:
-			if !seperatorFound {
-				matches := alarmsRegex.FindStringSubmatch(line)
-				if len(matches) > 0 {
-					matchesCount++
-					criticality := matches[1]
-					count, _ := strconv.ParseFloat(matches[2], 32)
-					ctx.Metrics <- prometheus.MustNewConstMetric(alarmsMetricDesc, prometheus.GaugeValue, count, append(ctx.LabelValues, criticality)...)
-					continue
-				} else {
-					seperatorFound = len(seperatorRegex.FindStringSubmatch(line)) > 0
-				}
-			}
-			if len(line) < 56 {
-				continue
-			}
-			slot := strings.TrimSpace(line[1:11])
-			sensor := strings.TrimSpace(line[13:27])
-			readingRaw := strings.TrimSpace(line[45:57])
-			matches := readingRegex.FindStringSubmatch(readingRaw)
-			if len(matches) != 3 {
-				continue
-			}
-			unit := matches[2]
-
-			// slot, sensor and unit does not make a distinct reading ...
-			concat := slot + sensor + unit
-			_, found := counter[concat]
-			if !found {
-				counter[concat] = 0
-			}
-			reading, _ := strconv.ParseFloat(matches[1], 32)
-			ctx.Metrics <- prometheus.MustNewConstMetric(environmentMetricDesc, prometheus.GaugeValue, reading, append(ctx.LabelValues, slot, sensor, unit, strconv.Itoa(counter[concat]))...)
-			counter[concat]++
-		}
-	}
+    parser.parse(sshCtx, ctx.LabelValues, ctx.Errors, ctx.Metrics)
 }
