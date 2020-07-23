@@ -237,7 +237,7 @@ func (p *nxosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, label
 				metrics <- prometheus.MustNewConstMetric(powerSupplyActualOutputDesc, prometheus.GaugeValue, actualOutput, labels...)
 				metrics <- prometheus.MustNewConstMetric(powerSupplyActualInputDesc, prometheus.GaugeValue, actualInput, labels...)
 				metrics <- prometheus.MustNewConstMetric(powerSupplyCapacityDesc, prometheus.GaugeValue, capacity, labels...)
-				metrics <- prometheus.MustNewConstMetric(powerSupplyOperationalInfo2Desc, prometheus.GaugeValue, status, labels...)
+				metrics <- prometheus.MustNewConstMetric(powerSupplyOperationalInfoDesc, prometheus.GaugeValue, status, append(labels, "")...)
 			}
 		}
 	}
@@ -269,7 +269,7 @@ func (p *iosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, labelV
 				if matches[2] == "ok" {
 					fanOperational = 1
 				}
-				metrics <- prometheus.MustNewConstMetric(fanOperationalInfoIosDesc, prometheus.GaugeValue, fanOperational, append(labelValues, fan)...)
+				metrics <- prometheus.MustNewConstMetric(fanOperationalInfoDesc, prometheus.GaugeValue, fanOperational, append(labelValues, fan, "", "")...)
 			}
 			if matches := systemTemperatureStatusRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {
 				status := matches[1]
@@ -278,7 +278,7 @@ func (p *iosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, labelV
 			if matches := temperatureValueRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {
 				sensor := matches[1]
 				value := util.Str2float64(matches[2])
-				metrics <- prometheus.MustNewConstMetric(temperatureCurrentIos, prometheus.GaugeValue, value, append(labelValues, sensor)...)
+				metrics <- prometheus.MustNewConstMetric(temperatureCurrentDesc, prometheus.GaugeValue, value, append(labelValues, "", sensor)...)
 			}
 			if matches := systemTemperatureLowAlertThresholdRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {
 				sensor := "system"
@@ -322,7 +322,7 @@ func (p *iosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, labelV
 				if matches[2] == "dc ok" {
 					status = 1
 				}
-				metrics <- prometheus.MustNewConstMetric(powerSupplyOperationalIosDesc, prometheus.GaugeValue, status, append(labelValues, powerSupply)...)
+				metrics <- prometheus.MustNewConstMetric(powerSupplyOperationalInfoDesc, prometheus.GaugeValue, status, append(labelValues, powerSupply, "", "")...)
 				continue
 			}
 			if matches := alarmContactStatusRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {

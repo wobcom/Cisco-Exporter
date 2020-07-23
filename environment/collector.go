@@ -32,10 +32,9 @@ var (
 	powerSupplyAllocatedCurrent *prometheus.Desc
 	powerSupplyStatusInfo       *prometheus.Desc
 
-	powerSupplyActualOutputDesc     *prometheus.Desc
-	powerSupplyActualInputDesc      *prometheus.Desc
-	powerSupplyCapacityDesc         *prometheus.Desc
-	powerSupplyOperationalInfo2Desc *prometheus.Desc
+	powerSupplyActualOutputDesc *prometheus.Desc
+	powerSupplyActualInputDesc  *prometheus.Desc
+	powerSupplyCapacityDesc     *prometheus.Desc
 
 	fanOperationalInfoDesc *prometheus.Desc
 
@@ -55,14 +54,11 @@ var (
 	fanSpeedDesc       *prometheus.Desc
 
 	// IOS
-	fanOperationalInfoIosDesc            *prometheus.Desc
 	systemTemperatureStatusInfoDesc      *prometheus.Desc
-	temperatureCurrentIos                *prometheus.Desc
 	temperatureLowAlarmThresholdDesc     *prometheus.Desc
 	temperatureLowShutdownThresholdDesc  *prometheus.Desc
 	temperatureHighAlarmThresholdDesc    *prometheus.Desc
 	temperatureHighShutdownThresholdDesc *prometheus.Desc
-	powerSupplyOperationalIosDesc        *prometheus.Desc
 	alarmContactAssertedDesc             *prometheus.Desc
 )
 
@@ -81,7 +77,7 @@ func (*Collector) Name() string {
 }
 
 func init() {
-	powerSupplyTotalCapacityDesc = prometheus.NewDesc(prefix+"powersupply_capacity_watts", "Total capacity in Watts", []string{"target"}, nil)
+	powerSupplyTotalCapacityDesc = prometheus.NewDesc(prefix+"powersupply_capacity_total_watts", "Total capacity in Watts", []string{"target"}, nil)
 	powerSupplyTotalPowerInputDesc = prometheus.NewDesc(prefix+"powersupply_total_power_input_watts", "Total power input in Watts", []string{"target"}, nil)
 	powerSupplyTotalPowerOutputDesc = prometheus.NewDesc(prefix+"powersupply_total_power_output_watts", "Total power output in Watts", []string{"target"}, nil)
 	powerSupplyTotalPowerAvailableDesc = prometheus.NewDesc(prefix+"powersupply_total_power_available_watts", "Total power available in Watts", []string{"target"}, nil)
@@ -105,7 +101,6 @@ func init() {
 	powerSupplyActualOutputDesc = prometheus.NewDesc(prefix+"powersupply_actual_output_watts", "Actual output in Watts", []string{"target", "supply", "model"}, nil)
 	powerSupplyActualInputDesc = prometheus.NewDesc(prefix+"powersupply_actual_input_watts", "Actual input in Watts", []string{"target", "supply", "model"}, nil)
 	powerSupplyCapacityDesc = prometheus.NewDesc(prefix+"powersupply_capacity_watts", "Power supply capacity in Watts", []string{"target", "supply", "model"}, nil)
-	powerSupplyOperationalInfo2Desc = prometheus.NewDesc(prefix+"powersupply_operational_info", "1 if the power supply is operational", []string{"target", "supply", "model"}, nil)
 
 	fanOperationalInfoDesc = prometheus.NewDesc(prefix+"fan_operational_status_info", "1 if the fan status is 'ok'", []string{"target", "fan", "model", "hw"}, nil)
 
@@ -124,14 +119,11 @@ func init() {
 
 	fanSpeedDesc = prometheus.NewDesc(prefix+"fan_speed_percentage", "Fan speed in percentage (0-100)", []string{"taget", "slot", "sensor"}, nil)
 
-	fanOperationalInfoIosDesc = prometheus.NewDesc(prefix+"fan_operational_status_info", "1 if the fan status is 'ok'", []string{"target", "fan"}, nil)
 	systemTemperatureStatusInfoDesc = prometheus.NewDesc(prefix+"system_temperature_status_info", "System temperature status as label", []string{"target", "status"}, nil)
-	temperatureCurrentIos = prometheus.NewDesc(prefix+"temperature_current_celsius", "Current temperature in degrees celsius", []string{"target", "sensor"}, nil)
 	temperatureLowAlarmThresholdDesc = prometheus.NewDesc(prefix+"temperature_low_alarm_threshold_celsius", "Low alarm threshold in degrees celsius", []string{"target", "sensor"}, nil)
 	temperatureLowShutdownThresholdDesc = prometheus.NewDesc(prefix+"temperature_low_shutdown_threshold_celsius", "Low shutdown threshold in degrees celsius", []string{"target", "sensor"}, nil)
 	temperatureHighAlarmThresholdDesc = prometheus.NewDesc(prefix+"temperature_high_alarm_threshold_celsius", "High alarm threshold in degrees celsius", []string{"target", "sensor"}, nil)
 	temperatureHighShutdownThresholdDesc = prometheus.NewDesc(prefix+"temperature_high_shutdown_threshold_celsius", "High shutdown threshold in degrees celsius", []string{"target", "sensor"}, nil)
-	powerSupplyOperationalIosDesc = prometheus.NewDesc(prefix+"powersupply_operational_info", "1 if the power supply is operational", []string{"target", "powersupply"}, nil)
 	alarmContactAssertedDesc = prometheus.NewDesc(prefix+"alarm_contacted_asserted_info", "1 if the alarm contact is asserted", []string{"target", "contact"}, nil)
 }
 
@@ -160,7 +152,6 @@ func (*Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- powerSupplyActualOutputDesc
 	ch <- powerSupplyActualInputDesc
 	ch <- powerSupplyCapacityDesc
-	ch <- powerSupplyOperationalInfo2Desc
 
 	ch <- fanOperationalInfoDesc
 
@@ -179,14 +170,11 @@ func (*Collector) Describe(ch chan<- *prometheus.Desc) {
 
 	ch <- fanSpeedDesc
 
-	ch <- fanOperationalInfoIosDesc
 	ch <- systemTemperatureStatusInfoDesc
-	ch <- temperatureCurrentIos
 	ch <- temperatureLowAlarmThresholdDesc
 	ch <- temperatureLowShutdownThresholdDesc
 	ch <- temperatureHighAlarmThresholdDesc
 	ch <- temperatureHighShutdownThresholdDesc
-	ch <- powerSupplyOperationalIosDesc
 	ch <- alarmContactAssertedDesc
 }
 
