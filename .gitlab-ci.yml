@@ -1,7 +1,5 @@
 image: golang:1.14
 
-tags:
-  - docker
 
 stages:
   - verify
@@ -9,6 +7,8 @@ stages:
   - publish
 
 default:
+  tags:
+    - docker
   before_script:
     - mkdir -p /go/src/gitlab.com/wobcom /go/src/_/builds
     - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/wobcom/cisco-exporter
