@@ -1,7 +1,12 @@
 image: golang:1.14
 
+tags:
+  - docker
+
 stages:
   - verify
+  - build
+  - publish
 
 default:
   before_script:
@@ -9,10 +14,7 @@ default:
     - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/wobcom/cisco-exporter
     - ln -s /go/src/gitlab.com/wobcom/cisco-exporter /go/src/_/builds/cisco-exporter
     - go get -v -d ./...
-    - go build -i -v gitlab.com/wobcom/cisco-exporter
-  artifacts:
-    paths:
-      - /go/src/_/builds/cisco-exporter
+    - go build -o $CI_PROJECT_DIR/cisco-exporter -i -v gitlab.com/wobcom/cisco-exporter
 
 fmt:
   stage: verify
@@ -42,3 +44,23 @@ test:
     - docker
   script:
     - go test ./...
+
+build:
+  stage: build
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/cisco-exporter*
+  tags:
+    - docker
+  script:
+    - GOOS=linux GOARCH=amd64 go build -o $CI_PROJECT_DIR/cisco-exporter  -i -v gitlab.com/wobcom/cisco-exporter
+
+publish:
+  stage: publish
+  tags:
+    - docker
+  only:
+    - tags
+  script:
+    - apt-get update && apt-get install -y jq
+    - ./.ci/publish.sh $CI_COMMIT_REF_NAME

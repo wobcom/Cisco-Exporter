@@ -24,7 +24,7 @@ Usage of ./cisco-exporter:
 ```
 
 ## Installation
-Binaries releases will follow soon, for now `go get gitlab.com/wobcom/cisco-exporter`
+Binary releases can be downloaded from the [releases page](https://gitlab.com/wobcom/cisco-exporter/-/releases).
 
 ## Configuration
 Monitored devices are provided in a configuration file:
