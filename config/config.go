@@ -31,17 +31,23 @@ const (
 	NXOS OSVersion = 3
 )
 
+// GetAllOsVersions returns all known and valid os version
+func GetAllOsVersions() []OSVersion {
+    return []OSVersion{IOSXE, IOS, NXOS}
+}
+
 // OSVersionToString converts OSVersion to a string
-func OSVersionToString(version OSVersion) string {
-	switch version {
-	case IOSXE:
-		return "ios-xe"
-	case IOS:
-		return "ios"
-	case NXOS:
-		return "nx-os"
-	}
-	return "invalid"
+func(o OSVersion) String() string {
+    mapping := map[OSVersion]string{
+        IOSXE: "ios-xe",
+        IOS: "ios",
+        NXOS: "nxos",
+    }
+    name, found := mapping[o]
+    if found {
+        return name
+    }
+    return "unknown/invalid"
 }
 
 // DeviceConfig is used to read device configuration from the config file

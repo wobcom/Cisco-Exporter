@@ -62,10 +62,10 @@ func (p *nxosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, label
 	powerSupplyRedundancyModeOperationalRegex := regexp.MustCompile(`redundancy .*?operational.*?\s{2,}(\S+)`)
 	powerSupplyRedundancyModeConfiguredRegex := regexp.MustCompile(`(redundancy mode \(configured\)|redundancy mode:)\s{2,}(\S+)`)
 	powerSupplyVoltageRegex := regexp.MustCompile(`(\d+)\s+volts`)
-	totalPowerCapacityRegex := regexp.MustCompile(`total power capacity.+?(\d+\.\d+) W`)
-	totalPowerInputRegex := regexp.MustCompile(`total power input.*?(\d+\.\d+) W`)
-	totalPowerOutputRegex := regexp.MustCompile(`total power output.*?(\d+\.\d+) W`)
-	totalPowerAvailableRegex := regexp.MustCompile(`total power available.*?(\d+\.\d+) W`)
+	totalPowerCapacityRegex := regexp.MustCompile(`total power capacity.+?(\d+\.\d+) w`)
+	totalPowerInputRegex := regexp.MustCompile(`total power input.*?(\d+\.\d+) w`)
+	totalPowerOutputRegex := regexp.MustCompile(`total power output.*?(\d+\.\d+) w`)
+	totalPowerAvailableRegex := regexp.MustCompile(`total power available.*?(\d+\.\d+) w`)
 	seperator := regexp.MustCompile(`\s+`)
 	parserState := nxosParserStateUnknown
 
@@ -115,19 +115,19 @@ func (p *nxosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, label
 					metrics <- prometheus.MustNewConstMetric(powerSupplyRedundancyConfiguredDesc, prometheus.GaugeValue, redundancyState, labelValues...)
 				}
 				if matches := totalPowerCapacityRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {
-					totalPowerCapacity := util.Str2float64(matches[0])
+					totalPowerCapacity := util.Str2float64(matches[1])
 					metrics <- prometheus.MustNewConstMetric(powerSupplyTotalCapacityDesc, prometheus.GaugeValue, totalPowerCapacity, labelValues...)
 				}
 				if matches := totalPowerInputRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {
-					totalPowerInput := util.Str2float64(matches[0])
+					totalPowerInput := util.Str2float64(matches[1])
 					metrics <- prometheus.MustNewConstMetric(powerSupplyTotalPowerInputDesc, prometheus.GaugeValue, totalPowerInput, labelValues...)
 				}
 				if matches := totalPowerOutputRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {
-					totalPowerOutput := util.Str2float64(matches[0])
+					totalPowerOutput := util.Str2float64(matches[1])
 					metrics <- prometheus.MustNewConstMetric(powerSupplyTotalPowerOutputDesc, prometheus.GaugeValue, totalPowerOutput, labelValues...)
 				}
 				if matches := totalPowerAvailableRegex.FindStringSubmatch(strings.ToLower(line)); matches != nil {
-					totalPowerAvailable := util.Str2float64(matches[0])
+					totalPowerAvailable := util.Str2float64(matches[1])
 					metrics <- prometheus.MustNewConstMetric(powerSupplyTotalPowerAvailableDesc, prometheus.GaugeValue, totalPowerAvailable, labelValues...)
 				}
 			}
@@ -246,7 +246,7 @@ func (p *nxosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, label
 func (p *iosEnvironmentParser) parse(sshCtx *connector.SSHCommandContext, labelValues []string, errors chan error, metrics chan<- prometheus.Metric) {
 	fanStatusRegex := regexp.MustCompile(`fan\s+in(.*?)\s+is\s+(\S+)`)
 	systemTemperatureStatusRegex := regexp.MustCompile(`system temperature is (.*)`)
-	temperatureValueRegex := regexp.MustCompile(`(.*) temperature Value: (.*) degree`)
+	temperatureValueRegex := regexp.MustCompile(`(.*) temperature value: (.*) degree`)
 	systemTemperatureLowAlertThresholdRegex := regexp.MustCompile(`system low temperature alert threshold: (.*) degree`)
 	systemTemperatureLowShutdownThresholdRegex := regexp.MustCompile(`system low temperature shutdown threshold: (.*) degree`)
 	systemTemperatureHighAlertThresholdRegex := regexp.MustCompile(`system high temperature alert threshold: (.*) degree`)

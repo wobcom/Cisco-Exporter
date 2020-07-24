@@ -189,7 +189,7 @@ func (c *CiscoCollector) collectForDevice(device *config.DeviceConfig, ch chan<-
 	defer func() {
 		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(startTime).Seconds(), device.Host)
 		ch <- prometheus.MustNewConstMetric(upDesc, prometheus.GaugeValue, ciscoUp, device.Host)
-		ch <- prometheus.MustNewConstMetric(versionDesc, prometheus.GaugeValue, 1, device.Host, config.OSVersionToString(device.OSVersion))
+		ch <- prometheus.MustNewConstMetric(versionDesc, prometheus.GaugeValue, 2, device.Host, device.OSVersion.String())
 	}()
 
 	for _, specificCollector := range c.collectorsForDevice[device.Host] {

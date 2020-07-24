@@ -59,6 +59,7 @@ Total Power Available                             442.80 W
 		prefix + "fan_operational_status_info{fan=PS-2,hw=--,model=N2200-PAC-400W,target=test.test}":           1,
 		prefix + "powersupply_allocated_current_amps{mod=1,model=N3K-C3048TP-1GE-SUP,target=test.test}":        29.1,
 		prefix + "powersupply_allocated_power_watts{mod=1,model=N3K-C3048TP-1GE-SUP,target=test.test}":         349.2,
+		prefix + "powersupply_capacity_total_watts{target=test.test}":                                          792,
 		prefix + "powersupply_current_amps{input_type=AC,model=N2200-PAC-400W,ps=1,target=test.test}":          33,
 		prefix + "powersupply_current_amps{input_type=AC,model=N2200-PAC-400W,ps=2,target=test.test}":          33,
 		prefix + "powersupply_operational_info{input_type=AC,model=N2200-PAC-400W,ps=1,target=test.test}":      1,
@@ -70,6 +71,7 @@ Total Power Available                             442.80 W
 		prefix + "powersupply_requested_current_amps{mod=1,model=N3K-C3048TP-1GE-SUP,target=test.test}":        29.100000,
 		prefix + "powersupply_requested_power_watts{mod=1,model=N3K-C3048TP-1GE-SUP,target=test.test}":         319.200000,
 		prefix + "powersupply_status_info{mod=1,model=N3K-C3048TP-1GE-SUP,status=powered-up,target=test.test}": 1,
+		prefix + "powersupply_total_power_available_watts{target=test.test}":                                   442.8,
 		prefix + "powersupply_voltage_volts{target=test.test}":                                                 12,
 		prefix + "temperature_current_celsius{module=1,sensor=Back        (D0),target=test.test}":              42,
 		prefix + "temperature_current_celsius{module=2,sensor=Front Middle(D1),target=test.test}":              57,
@@ -153,6 +155,8 @@ Module   Sensor        MajorThresh   MinorThres   CurTemp     Status
 		prefix + "powersupply_operational_info{input_type=,model=NXA-PAC-650W-PI,ps=2,target=test.test}":        1,
 		prefix + "powersupply_redundancy_configured_info{target=test.test}":                                     1,
 		prefix + "powersupply_redundancy_opererational_info{target=test.test}":                                  1,
+		prefix + "powersupply_total_power_input_watts{target=test.test}":                                        181,
+		prefix + "powersupply_total_power_output_watts{target=test.test}":                                       155,
 		prefix + "powersupply_voltage_volts{target=test.test}":                                                  12,
 		prefix + "temperature_current_celsius{module=1,sensor=BACK,target=test.test}":                           32,
 		prefix + "temperature_current_celsius{module=1,sensor=CPU,target=test.test}":                            45,
@@ -177,7 +181,7 @@ Slot    Sensor       Current State       Reading
 ----    ------       -------------       -------
  P0    PEM Iout         Normal           6 A
  P0    PEM Vout         Normal           12 V DC
- P0    PEM Vin          Normal           53 V DC
+ P0    PEM Vin          Normal           53 V AC
  P0    Temp: PEM        Normal           28 Celsius
  P0    Temp: FC         Fan Speed 65%    20 Celsius
  P1    PEM Iout         Normal           6 A
@@ -462,6 +466,8 @@ ALARM CONTACT 4 is not asserted
 		prefix + "powersupply_operational_info{input_type=,model=,ps=power supply 1,target=test.test}": 1,
 		prefix + "powersupply_operational_info{input_type=,model=,ps=power supply 2,target=test.test}": 1,
 		prefix + "system_temperature_status_info{status=green,target=test.test}":                       1,
+        prefix + "temperature_current_celsius{module=,sensor=power supply 1,target=test.test}": 39.75,
+        prefix + "temperature_current_celsius{module=,sensor=power supply 2,target=test.test}": 40.25,
 		prefix + "temperature_high_alarm_threshold_celsius{sensor=power supply 1,target=test.test}":    85,
 		prefix + "temperature_high_alarm_threshold_celsius{sensor=power supply 2,target=test.test}":    85,
 		prefix + "temperature_high_alarm_threshold_celsius{sensor=system,target=test.test}":            58,
@@ -506,6 +512,8 @@ ALARM CONTACT 4 is not asserted
 		prefix + "powersupply_operational_info{input_type=,model=,ps=power supply 1,target=test.test}": 1,
 		prefix + "powersupply_operational_info{input_type=,model=,ps=power supply 2,target=test.test}": 1,
 		prefix + "system_temperature_status_info{status=green,target=test.test}":                       1,
+        prefix + "temperature_current_celsius{module=,sensor=power supply 2,target=test.test}": 47.75,
+        prefix + "temperature_current_celsius{module=,sensor=power supply 1,target=test.test}": 49.5,
 		prefix + "temperature_high_alarm_threshold_celsius{sensor=power supply 1,target=test.test}":    85,
 		prefix + "temperature_high_alarm_threshold_celsius{sensor=power supply 2,target=test.test}":    85,
 		prefix + "temperature_high_alarm_threshold_celsius{sensor=system,target=test.test}":            58,

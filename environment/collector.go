@@ -186,7 +186,7 @@ func (c *Collector) Collect(ctx *collector.CollectContext) {
 
 	parser, err := getParserForOSversion(ctx.Connection.Device.OSVersion)
 	if err != nil {
-		ctx.Errors <- fmt.Errorf("Could not get an environment parser for OS Version '%s': %v", config.OSVersionToString(ctx.Connection.Device.OSVersion), err)
+		ctx.Errors <- fmt.Errorf("Could not get an environment parser for OS Version '%s': %v", ctx.Connection.Device.OSVersion.String(), err)
 		return
 	}
 
