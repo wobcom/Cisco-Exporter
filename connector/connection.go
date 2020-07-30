@@ -196,7 +196,7 @@ func (conn *SSHConnection) scanLines(done chan struct{}, abortSignal *bool, read
 		done <- struct{}{}
 		reader.Reset(nil)
 	}()
-	cmdLineRegex := regexp.MustCompile(`^\.?\d{2}:\d{2}:\d{2}.\d{3}`)
+	cmdLineRegex := regexp.MustCompile(`^[\*\.]?\d{2}:\d{2}:\d{2}.\d{3}`)
 	authenticationRegexp := regexp.MustCompile(`[aA]uthentication [eE]xpired`)
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(bufio.ScanLines)

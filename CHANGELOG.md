@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.3 - 2020-07-30
+Fix bugs related to scraping old IOS-XE systems (#4)
+
 ## 1.0.2 - 2020-07-23
 Fix bugs introduced in fixing #3
 
