@@ -61,6 +61,7 @@ Multiple collectors are available, you **must** specify which one to use.
 * **`pppoe`**: Collects PPPoE statistics by issueing a `show pppoe statistics`.
 * **`vlans`**: Collects VLAN counters returned by a `show vlans`.
 * **`nat`**: Collects general NAT counters `show ip nat statistics` and NAT Pool counters `show ip nat pool name $name`.
+* **`local_pools`**: Collects general information about local pools by using `show ip local pool`.
 
 ## Implementation details
 Upon start cisco-exporter will try to connect with all the scrape targets.

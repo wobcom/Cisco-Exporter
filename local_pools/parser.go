@@ -1,4 +1,4 @@
-package pool
+package local_pools
 
 import (
 	"gitlab.com/wobcom/cisco-exporter/connector"

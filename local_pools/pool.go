@@ -1,4 +1,4 @@
-package pool
+package local_pools
 
 type Pool struct {
 	Name string

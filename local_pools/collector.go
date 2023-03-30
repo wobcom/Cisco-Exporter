@@ -1,4 +1,4 @@
-package pool
+package local_pools
 
 import (
 	"gitlab.com/wobcom/cisco-exporter/collector"
@@ -28,7 +28,7 @@ func NewCollector() collector.Collector {
 
 // Name implements the collector.Collector interface's Name function
 func (*Collector) Name() string {
-	return "pool"
+	return "local_pools"
 }
 
 func init() {
@@ -68,7 +68,7 @@ func collectPools(ctx *collector.CollectContext) {
 		case pool := <-poolsChan:
 			generatePoolMetrics(ctx, pool)
 		case err := <-sshCtx.Errors:
-			ctx.Errors <- errors.Wrapf(err, "Error scraping pool statistics: %v", err)
+			ctx.Errors <- errors.Wrapf(err, "Error scraping local_pools statistics: %v", err)
 		case <-poolParsingDone:
 			return
 		}
