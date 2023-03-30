@@ -33,21 +33,21 @@ const (
 
 // GetAllOsVersions returns all known and valid os version
 func GetAllOsVersions() []OSVersion {
-    return []OSVersion{IOSXE, IOS, NXOS}
+	return []OSVersion{IOSXE, IOS, NXOS}
 }
 
 // OSVersionToString converts OSVersion to a string
-func(o OSVersion) String() string {
-    mapping := map[OSVersion]string{
-        IOSXE: "ios-xe",
-        IOS: "ios",
-        NXOS: "nxos",
-    }
-    name, found := mapping[o]
-    if found {
-        return name
-    }
-    return "unknown/invalid"
+func (o OSVersion) String() string {
+	mapping := map[OSVersion]string{
+		IOSXE: "ios-xe",
+		IOS:   "ios",
+		NXOS:  "nxos",
+	}
+	name, found := mapping[o]
+	if found {
+		return name
+	}
+	return "unknown/invalid"
 }
 
 // DeviceConfig is used to read device configuration from the config file
@@ -64,6 +64,7 @@ type DeviceConfig struct {
 	CommandTimeout    int      `yaml:"command_timeout,omitempty"`
 	EnabledCollectors []string `yaml:"enabled_collectors,flow"`
 	Interfaces        []string `yaml:"interfaces,flow"`
+	EnabledVLANs      []string `yaml:"enabled_vlans,flow"`
 }
 
 func newConfig() *Config {
