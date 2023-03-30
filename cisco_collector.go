@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gitlab.com/wobcom/cisco-exporter/local_pools"
 	"sync"
 	"time"
 
@@ -74,6 +75,7 @@ func newCiscoCollector(devices []*config.DeviceConfig, connectionManager *connec
 	pppoeCollector := pppoe.NewCollector()
 	mplsCollector := mpls.NewCollector()
 	natCollector := nat.NewCollector()
+	poolCollector := local_pools.NewCollector()
 
 	collectors[memoryCollector.Name()] = memoryCollector
 	collectors[cpuCollector.Name()] = cpuCollector
@@ -86,6 +88,7 @@ func newCiscoCollector(devices []*config.DeviceConfig, connectionManager *connec
 	collectors[pppoeCollector.Name()] = pppoeCollector
 	collectors[mplsCollector.Name()] = mplsCollector
 	collectors[natCollector.Name()] = natCollector
+	collectors[poolCollector.Name()] = poolCollector
 
 	for _, device := range devices {
 		for _, collectorName := range device.EnabledCollectors {
