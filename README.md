@@ -36,6 +36,8 @@ devices:
       - cpu
       - memory
       - interfaces
+    enabled_vlans: # optional: Some devices (BNGs) might have thousands of vlans 
+      - 100
     interfaces:  # optional: Some devices (BNGs) might have thousands of interfaces
       - HundredGigE0/0/0  # you can specify the interfaces to be scraped
       - GigabitEthernet0
