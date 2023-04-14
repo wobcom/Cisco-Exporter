@@ -32,10 +32,10 @@ func (*Collector) Name() string {
 }
 
 func init() {
-	l := []string{"target", "pool_name"}
-	addressesTotalDesc = prometheus.NewDesc(prefix+"pool_addresses_total", "Pool total addresses", l, nil)
-	addressesAvailDesc = prometheus.NewDesc(prefix+"pool_addresses_avail", "Pool available addresses", l, nil)
-	addressesAssignedDesc = prometheus.NewDesc(prefix+"pool_addresses_assigned", "Pool assigned addresses", l, nil)
+	l := []string{"target", "pool_name", "pool_start_ip", "pool_end_ip"}
+	addressesTotalDesc = prometheus.NewDesc(prefix+"pool_addresses_total", "PoolGroup total addresses", l, nil)
+	addressesAvailDesc = prometheus.NewDesc(prefix+"pool_addresses_avail", "PoolGroup available addresses", l, nil)
+	addressesAssignedDesc = prometheus.NewDesc(prefix+"pool_addresses_assigned", "PoolGroup assigned addresses", l, nil)
 }
 
 // Describe implements the collector.Collector interface's Describe function
@@ -58,7 +58,7 @@ func collectPools(ctx *collector.CollectContext) {
 	sshCtx := connector.NewSSHCommandContext("show ip local pool")
 	go ctx.Connection.RunCommand(sshCtx)
 
-	poolsChan := make(chan *Pool)
+	poolsChan := make(chan *PoolGroup)
 	poolParsingDone := make(chan struct{})
 
 	go ParsePool(sshCtx, poolsChan, poolParsingDone)
@@ -75,9 +75,13 @@ func collectPools(ctx *collector.CollectContext) {
 	}
 }
 
-func generatePoolMetrics(ctx *collector.CollectContext, pool *Pool) {
-	l := append(ctx.LabelValues, pool.Name)
-	ctx.Metrics <- prometheus.MustNewConstMetric(addressesTotalDesc, prometheus.GaugeValue, pool.AddressesTotal, l...)
-	ctx.Metrics <- prometheus.MustNewConstMetric(addressesAvailDesc, prometheus.GaugeValue, pool.AddressesAvail, l...)
-	ctx.Metrics <- prometheus.MustNewConstMetric(addressesAssignedDesc, prometheus.GaugeValue, pool.AddressesAssigned, l...)
+func generatePoolMetrics(ctx *collector.CollectContext, poolGroup *PoolGroup) {
+	l := append(ctx.LabelValues, poolGroup.Name)
+	for _, pool := range poolGroup.Pools {
+		m := append(l, pool.StartIP, pool.EndIP)
+		ctx.Metrics <- prometheus.MustNewConstMetric(addressesTotalDesc, prometheus.GaugeValue, pool.AddressesTotal, m...)
+		ctx.Metrics <- prometheus.MustNewConstMetric(addressesAvailDesc, prometheus.GaugeValue, pool.AddressesAvail, m...)
+		ctx.Metrics <- prometheus.MustNewConstMetric(addressesAssignedDesc, prometheus.GaugeValue, pool.AddressesAssigned, m...)
+	}
+
 }
