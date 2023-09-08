@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/gobwas/glob"
 	"io"
 	"io/ioutil"
 
@@ -13,7 +14,7 @@ const defaultPort int = 22
 
 // Config provides means of reading the configuration file
 type Config struct {
-	Devices map[string]*DeviceConfig `yaml:"devices,omitempty"`
+	DeviceGroups map[string]*DeviceGroupConfig `yaml:"devices,omitempty"`
 }
 
 // OSVersion is a type to refere to the remote device's operating system.
@@ -50,28 +51,56 @@ func (o OSVersion) String() string {
 	return "unknown/invalid"
 }
 
-// DeviceConfig is used to read device configuration from the config file
-// DeviceConfig describe how to connect to a remote device and what metrics
+// DeviceGroupConfig is used to read device configuration from the config file
+// DeviceGroupConfig describe how to connect to a remote device and what metrics
 // to extract from the remote device.
-type DeviceConfig struct {
+type DeviceGroupConfig struct {
 	OSVersion         OSVersion
-	Host              string
-	Port              int      `yaml:"port,omitempty"`
-	Username          string   `yaml:"username"`
-	KeyFile           string   `yaml:"key_file,omitempty"`
-	Password          string   `yaml:"password,omitempty"`
-	ConnectTimeout    int      `yaml:"connect_timeout,omitempty"`
-	CommandTimeout    int      `yaml:"command_timeout,omitempty"`
-	EnabledCollectors []string `yaml:"enabled_collectors,flow"`
-	Interfaces        []string `yaml:"interfaces,flow"`
-	EnabledVLANs      []string `yaml:"enabled_vlans,flow"`
+	StaticName        *string   `yaml:"-"`
+	Matcher           glob.Glob `yaml:"-"`
+	Port              int       `yaml:"port,omitempty"`
+	Username          string    `yaml:"username"`
+	KeyFile           string    `yaml:"key_file,omitempty"`
+	Password          string    `yaml:"password,omitempty"`
+	ConnectTimeout    int       `yaml:"connect_timeout,omitempty"`
+	CommandTimeout    int       `yaml:"command_timeout,omitempty"`
+	EnabledCollectors []string  `yaml:"enabled_collectors,flow"`
+	Interfaces        []string  `yaml:"interfaces,flow"`
+	EnabledVLANs      []string  `yaml:"enabled_vlans,flow"`
 }
 
 func newConfig() *Config {
 	config := &Config{
-		Devices: make(map[string]*DeviceConfig, 0),
+		DeviceGroups: make(map[string]*DeviceGroupConfig, 0),
 	}
 	return config
+}
+
+func (c *Config) GetDeviceGroup(device string) *DeviceGroupConfig {
+	for _, config := range c.DeviceGroups {
+		if config.Matcher == nil {
+			continue
+		}
+
+		if config.Matcher.Match(device) {
+			return config
+		}
+	}
+
+	return nil
+
+}
+
+func (c *Config) GetStaticDevices() []string {
+	staticDeviceNames := make([]string, 0)
+
+	for _, config := range c.DeviceGroups {
+		if config.StaticName != nil {
+			staticDeviceNames = append(staticDeviceNames, *config.StaticName)
+		}
+	}
+
+	return staticDeviceNames
 }
 
 // Load loads the configuration from the given reader.
@@ -87,16 +116,25 @@ func Load(reader io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	for hostName, device := range config.Devices {
-		device.Host = hostName
-		if device.ConnectTimeout == 0 {
-			device.ConnectTimeout = defaultConnectTimeout
+	for matchStr, groupConfig := range config.DeviceGroups {
+
+		groupConfig.Matcher = glob.MustCompile(matchStr)
+
+		// A glob is static, if there are no special meta signs to quote.
+		// Therefore, QuoteMeta should be a no op for static strings.
+		if glob.QuoteMeta(matchStr) == matchStr {
+			s := matchStr
+			groupConfig.StaticName = &s
 		}
-		if device.CommandTimeout == 0 {
-			device.CommandTimeout = defaultCommandTimeout
+
+		if groupConfig.ConnectTimeout == 0 {
+			groupConfig.ConnectTimeout = defaultConnectTimeout
 		}
-		if device.Port == 0 {
-			device.Port = defaultPort
+		if groupConfig.CommandTimeout == 0 {
+			groupConfig.CommandTimeout = defaultCommandTimeout
+		}
+		if groupConfig.Port == 0 {
+			groupConfig.Port = defaultPort
 		}
 	}
 

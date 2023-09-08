@@ -26,7 +26,8 @@ type SSHConnection struct {
 	sshClient           *ssh.Client
 	mu                  sync.Mutex
 	transportConnection net.Conn
-	Device              *config.DeviceConfig
+	Target              string
+	Device              *config.DeviceGroupConfig
 	done                chan struct{}
 }
 
@@ -158,7 +159,7 @@ func (conn *SSHConnection) RunCommand(ctx *SSHCommandContext) {
 	}
 
 	if conn.transportConnection == nil {
-		ctx.Errors <- errors.New(fmt.Sprintf("Cannot run command '%s' on target '%s': Not connected.", ctx.Command, conn.Device.Host))
+		ctx.Errors <- errors.New(fmt.Sprintf("Cannot run command '%s' on target '%s': Not connected.", ctx.Command, conn.Target))
 		return
 	}
 
@@ -184,7 +185,7 @@ func (conn *SSHConnection) RunCommand(ctx *SSHCommandContext) {
 	case <-scannerDone:
 		return
 	case <-time.After(time.Duration(ctx.Timeout) * time.Second):
-		ctx.Errors <- errors.New(fmt.Sprintf("Timeout reached for '%s' on %s", ctx.Command, conn.Device.Host))
+		ctx.Errors <- errors.New(fmt.Sprintf("Timeout reached for '%s' on %s", ctx.Command, conn.Target))
 		abortSignal = true
 		conn.terminate()
 		return

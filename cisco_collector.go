@@ -51,13 +51,14 @@ func init() {
 
 // CiscoCollector bundles all available Collectors and runs them against multiple devices
 type CiscoCollector struct {
-	devices             []*config.DeviceConfig
+	devices             []string
+	deviceGroups        []*config.DeviceGroupConfig
 	connectionManager   *connector.SSHConnectionManager
 	collectors          map[string]collector.Collector
 	collectorsForDevice map[string][]collector.Collector
 }
 
-func newCiscoCollector(devices []*config.DeviceConfig, connectionManager *connector.SSHConnectionManager) *CiscoCollector {
+func newCiscoCollector(targets []string, connectionManager *connector.SSHConnectionManager) *CiscoCollector {
 	collectors := make(map[string]collector.Collector)
 	collectorsForDevice := make(map[string][]collector.Collector)
 
@@ -90,12 +91,15 @@ func newCiscoCollector(devices []*config.DeviceConfig, connectionManager *connec
 	collectors[natCollector.Name()] = natCollector
 	collectors[poolCollector.Name()] = poolCollector
 
-	for _, device := range devices {
-		for _, collectorName := range device.EnabledCollectors {
+	for _, target := range targets {
+
+		deviceGroup := configuration.GetDeviceGroup(target)
+
+		for _, collectorName := range deviceGroup.EnabledCollectors {
 			collector, found := collectors[collectorName]
 			if !found {
 				if collectorName == "optics" {
-					switch device.OSVersion {
+					switch deviceGroup.OSVersion {
 					case config.NXOS:
 						collector = opticsNXOSCollector
 					case config.IOS:
@@ -104,18 +108,18 @@ func newCiscoCollector(devices []*config.DeviceConfig, connectionManager *connec
 						collector = opticsXECollector
 					}
 				} else {
-					log.Errorf("Configured collector '%s' for device '%s'. No such collector", collectorName, device.Host)
+					log.Errorf("Configured collector '%s' for device '%s'. No such collector", collectorName, target)
 					continue
 				}
 			}
 			if collector != nil {
-				collectorsForDevice[device.Host] = append(collectorsForDevice[device.Host], collector)
+				collectorsForDevice[target] = append(collectorsForDevice[target], collector)
 			}
 		}
 	}
 
 	return &CiscoCollector{
-		devices:             devices,
+		devices:             targets,
 		connectionManager:   connectionManager,
 		collectors:          collectors,
 		collectorsForDevice: collectorsForDevice,
@@ -144,22 +148,23 @@ func (c *CiscoCollector) Collect(ch chan<- prometheus.Metric) {
 
 	wg.Add(len(c.devices))
 
-	for _, device := range c.devices {
-		go c.collectForDevice(device, ch, wg)
+	for _, target := range c.devices {
+		dg := configuration.GetDeviceGroup(target)
+		go c.collectForDevice(target, dg, ch, wg)
 	}
 
 	wg.Wait()
 }
 
-func (c *CiscoCollector) createCollectContext(device *config.DeviceConfig, ch chan<- prometheus.Metric) (*collector.CollectContext, error) {
-	connection, err := c.connectionManager.GetConnection(device)
+func (c *CiscoCollector) createCollectContext(target string, deviceGroupConfig *config.DeviceGroupConfig, ch chan<- prometheus.Metric) (*collector.CollectContext, error) {
+	connection, err := c.connectionManager.GetConnection(target, deviceGroupConfig)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Could not get connection for device %s: %v", device.Host, err)
+		return nil, errors.Wrapf(err, "Could not get connection for device %s: %v", target, err)
 	}
 
 	return &collector.CollectContext{
 		Connection:  connection,
-		LabelValues: []string{device.Host},
+		LabelValues: []string{target},
 		Metrics:     ch,
 		Errors:      make(chan error),
 		Done:        make(chan struct{}),
@@ -176,40 +181,40 @@ func runCollector(collector collector.Collector, collectorContext *collector.Col
 		case <-collectorContext.Done:
 			return errs
 		case err := <-collectorContext.Errors:
-			log.Errorf("Error while running collector %s on device %s: %v", collector.Name(), collectorContext.Connection.Device.Host, err)
+			log.Errorf("Error while running collector %s on device %s: %v", collector.Name(), collectorContext.Connection.Target, err)
 			errs = append(errs, err)
 			continue
 		}
 	}
 }
 
-func (c *CiscoCollector) collectForDevice(device *config.DeviceConfig, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
+func (c *CiscoCollector) collectForDevice(target string, deviceGroup *config.DeviceGroupConfig, ch chan<- prometheus.Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	ciscoUp := 1.0
 	startTime := time.Now()
 
 	defer func() {
-		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(startTime).Seconds(), device.Host)
-		ch <- prometheus.MustNewConstMetric(upDesc, prometheus.GaugeValue, ciscoUp, device.Host)
-		ch <- prometheus.MustNewConstMetric(versionDesc, prometheus.GaugeValue, 2, device.Host, device.OSVersion.String())
+		ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(startTime).Seconds(), target)
+		ch <- prometheus.MustNewConstMetric(upDesc, prometheus.GaugeValue, ciscoUp, target)
+		ch <- prometheus.MustNewConstMetric(versionDesc, prometheus.GaugeValue, 2, target, deviceGroup.OSVersion.String())
 	}()
 
-	for _, specificCollector := range c.collectorsForDevice[device.Host] {
+	for _, specificCollector := range c.collectorsForDevice[target] {
 		startTimeCollector := time.Now()
 		totalCollectorErrors := 0.0
 		success := false
 
 		for retryCount := 0; retryCount < 2 && !success; retryCount++ {
 			if time.Since(startTime) > *scrapeTimeout {
-				log.Errorf("Ran into scrape timeout for device %s", device.Host)
+				log.Errorf("Ran into scrape timeout for device %s", target)
 				return
 			}
 
-			collectContext, err := c.createCollectContext(device, ch)
+			collectContext, err := c.createCollectContext(target, deviceGroup, ch)
 			if err != nil {
 				ciscoUp = 0
-				log.Errorf("Could not create CollectContext for device %s: %v", device.Host, err)
+				log.Errorf("Could not create CollectContext for device %s: %v", target, err)
 				continue
 			} else {
 				ciscoUp = 1
@@ -220,7 +225,7 @@ func (c *CiscoCollector) collectForDevice(device *config.DeviceConfig, ch chan<-
 			success = len(errs) == 0
 		}
 
-		labels := []string{device.Host, specificCollector.Name()}
+		labels := []string{target, specificCollector.Name()}
 		elapsedSeconds := time.Since(startTimeCollector).Seconds()
 		ch <- prometheus.MustNewConstMetric(errorsDesc, prometheus.GaugeValue, totalCollectorErrors, labels...)
 		ch <- prometheus.MustNewConstMetric(scrapeCollectorDurationDesc, prometheus.GaugeValue, elapsedSeconds, labels...)
