@@ -27,9 +27,13 @@ Usage of ./cisco-exporter:
 Binary releases can be downloaded from the [releases page](https://gitlab.com/wobcom/cisco-exporter/-/releases).
 
 ## Configuration
-Monitored devices are provided in a configuration file:
+
+Devices can be monitored in two different ways. You can configure a static device or configure a dynamic device group.
+Dynamic device groups are used with the [multi-target exporter pattern](https://prometheus.io/docs/guides/multi-target-exporter/).
+
 ```yaml
 devices:
+  # Static Device
   hostname.example.com:
     port: 1337  # optional: SSH port of the remote device
     enabled_collectors:  # required: See below for a list of collectors
@@ -46,6 +50,10 @@ devices:
     password: correcthorsebatterystaple  # optional: Password for SSH auth
     ConnectTimeout: 5  # optional: Timeout for establishing the SSH conenction
     CommandTimeout: 10  # optional: Timeout for running a single command on the remote
+  # Dynamic Device Group
+  host*.foo.example.com:
+    port: 1338
+    # ... Similar ot static configuration 
 ```
 
 ## Available collectors
