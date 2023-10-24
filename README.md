@@ -46,7 +46,7 @@ devices:
       - HundredGigE0/0/0  # you can specify the interfaces to be scraped
       - GigabitEthernet0
     username: monitoring  # required: Username to use for SSH auth
-    kefile: /path/to/a/private.key  # optional: Private key to use for SSH auth
+    key_file: /path/to/a/private.key  # optional: Private key to use for SSH auth
     password: correcthorsebatterystaple  # optional: Password for SSH auth
     ConnectTimeout: 5  # optional: Timeout for establishing the SSH conenction
     CommandTimeout: 10  # optional: Timeout for running a single command on the remote
