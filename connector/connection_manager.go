@@ -76,31 +76,31 @@ func NewConnectionManager(options ...Option) *SSHConnectionManager {
 // GetConnection returns an SSHConnection to the given device.
 // If the connection has not yet been established (or lost), establishing a connection is attempted.
 // In case of error nil and the error are returned.
-func (connMan *SSHConnectionManager) GetConnection(device *config.DeviceConfig) (*SSHConnection, error) {
+func (connMan *SSHConnectionManager) GetConnection(target string, deviceGroup *config.DeviceGroupConfig) (*SSHConnection, error) {
 	connMan.mutexesMutex.Lock()
-	_, found := connMan.mutexes[device.Host]
+	_, found := connMan.mutexes[target]
 	if !found {
-		connMan.mutexes[device.Host] = sync.Mutex{}
+		connMan.mutexes[target] = sync.Mutex{}
 	}
-	mutex, _ := connMan.mutexes[device.Host]
+	mutex, _ := connMan.mutexes[target]
 	connMan.mutexesMutex.Unlock()
 
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	connMan.connectionsMutex.Lock()
-	connection, found := connMan.connections[device.Host]
+	connection, found := connMan.connections[target]
 	connMan.connectionsMutex.Unlock()
 	var err error = nil
 
 	if found {
 		if !connection.IsConnected() {
-			log.Errorf("Connection to '%s' was lost, reconnecting.", device.Host)
-			connection, err = connMan.establishConnection(device)
+			log.Errorf("Connection to '%s' was lost, reconnecting.", target)
+			connection, err = connMan.establishConnection(target, deviceGroup)
 		} else if !connection.IsAuthenticated() {
-			log.Errorf("Connection to '%s' is no longer authenticated, reconnecting.", device.Host)
+			log.Errorf("Connection to '%s' is no longer authenticated, reconnecting.", target)
 			connection.Terminate()
-			connection, err = connMan.establishConnection(device)
+			connection, err = connMan.establishConnection(target, deviceGroup)
 		} else {
 			return connection, nil
 		}
@@ -108,15 +108,15 @@ func (connMan *SSHConnectionManager) GetConnection(device *config.DeviceConfig) 
 			return nil, err
 		}
 		connMan.connectionsMutex.Lock()
-		connMan.connections[device.Host] = connection
+		connMan.connections[target] = connection
 		connMan.connectionsMutex.Unlock()
 	} else {
-		connection, err = connMan.establishConnection(device)
+		connection, err = connMan.establishConnection(target, deviceGroup)
 		if err != nil {
 			return nil, err
 		}
 		connMan.connectionsMutex.Lock()
-		connMan.connections[device.Host] = connection
+		connMan.connections[target] = connection
 		connMan.connectionsMutex.Unlock()
 	}
 	if connection == nil {
@@ -125,15 +125,15 @@ func (connMan *SSHConnectionManager) GetConnection(device *config.DeviceConfig) 
 	return connection, err
 }
 
-func (connMan *SSHConnectionManager) establishConnection(device *config.DeviceConfig) (*SSHConnection, error) {
-	sshClient, transportConnection, err := connMan.makeSSHClient(device)
+func (connMan *SSHConnectionManager) establishConnection(target string, device *config.DeviceGroupConfig) (*SSHConnection, error) {
+	sshClient, transportConnection, err := connMan.makeSSHClient(target, device)
 	if err != nil {
 		return nil, err
 	}
 
 	sshSession, err := sshClient.NewSession()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Could not open a new session for '%s'", device.Host)
+		return nil, errors.Wrapf(err, "Could not open a new session for '%s'", target)
 	}
 
 	stdin, _ := sshSession.StdinPipe()
@@ -159,38 +159,38 @@ func (connMan *SSHConnectionManager) establishConnection(device *config.DeviceCo
 
 	err = sshConnection.DisablePagination()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Could not disable pagination on '%s': %v", device.Host, err)
+		return nil, errors.Wrapf(err, "Could not disable pagination on '%s': %v", target, err)
 	}
 	device.OSVersion, err = sshConnection.IdentifyOSVersion()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Could not identify os version on '%s': %s", device.Host, err)
+		return nil, errors.Wrapf(err, "Could not identify os version on '%s': %s", target, err)
 	}
 
-	log.Infof("Established an SSH connection with '%s'", device.Host)
+	log.Infof("Established an SSH connection with '%s'", target)
 	return sshConnection, nil
 }
 
-func (connMan *SSHConnectionManager) makeSSHClient(device *config.DeviceConfig) (*ssh.Client, net.Conn, error) {
+func (connMan *SSHConnectionManager) makeSSHClient(target string, device *config.DeviceGroupConfig) (*ssh.Client, net.Conn, error) {
 	clientConfig, err := connMan.makeSSHConfig(device)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	transportConnection, err := net.DialTimeout("tcp", net.JoinHostPort(device.Host, strconv.Itoa(device.Port)), time.Duration(device.ConnectTimeout)*time.Second)
+	transportConnection, err := net.DialTimeout("tcp", net.JoinHostPort(target, strconv.Itoa(device.Port)), time.Duration(device.ConnectTimeout)*time.Second)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, fmt.Sprintf("Could not connect to device '%s'", device.Host))
+		return nil, nil, errors.Wrap(err, fmt.Sprintf("Could not connect to device '%s'", target))
 	}
 
-	c, chans, reqs, err := ssh.NewClientConn(transportConnection, device.Host, clientConfig)
+	c, chans, reqs, err := ssh.NewClientConn(transportConnection, target, clientConfig)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, fmt.Sprintf("Could not establish SSH connection with '%s'", device.Host))
+		return nil, nil, errors.Wrap(err, fmt.Sprintf("Could not establish SSH connection with '%s'", target))
 	}
 
 	client := ssh.NewClient(c, chans, reqs)
 	return client, transportConnection, nil
 }
 
-func (connMan *SSHConnectionManager) makeSSHConfig(device *config.DeviceConfig) (*ssh.ClientConfig, error) {
+func (connMan *SSHConnectionManager) makeSSHConfig(device *config.DeviceGroupConfig) (*ssh.ClientConfig, error) {
 	if device.Port == 0 {
 		device.Port = defaultPort
 	}
@@ -206,7 +206,7 @@ func (connMan *SSHConnectionManager) makeSSHConfig(device *config.DeviceConfig) 
 	return &config, err
 }
 
-func makeAuth(device *config.DeviceConfig) ([]ssh.AuthMethod, error) {
+func makeAuth(device *config.DeviceGroupConfig) ([]ssh.AuthMethod, error) {
 	var authMethods []ssh.AuthMethod
 
 	if device.KeyFile != "" {
@@ -234,7 +234,7 @@ func makeAuth(device *config.DeviceConfig) ([]ssh.AuthMethod, error) {
 	}
 
 	if len(authMethods) == 0 {
-		return nil, errors.New(fmt.Sprintf("I don't know how to authenticate with '%s'", device.Host))
+		return nil, errors.New(fmt.Sprintf("I don't know how to authenticate with '%s'", device.Matcher))
 	}
 
 	return authMethods, nil

@@ -1,0 +1,30 @@
+---
+
+devices:
+  "foo.example.host.tld":
+    username: monitoring
+    password: <redacted>
+    enabled_collectors:
+      - optics
+      - cpu
+      - bgp
+      - memory
+      - environment
+      - nat
+      - interfaces
+      - aaa
+      - users
+
+  "*.host.tld":
+    username: monitoring
+    password: <redacted>
+    enabled_collectors:
+      - optics
+      - cpu
+      - bgp
+      - memory
+      - environment
+      - nat
+      - interfaces
+      - aaa
+      - users

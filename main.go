@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"sync"
-
 	"time"
 
 	"gitlab.com/wobcom/cisco-exporter/config"
@@ -71,27 +69,7 @@ func initialize() error {
 		connector.WithKeepAliveInterval(*sshKeepAliveInterval),
 		connector.WithKeepAliveTimeout(*sshKeepAliveTimeout))
 
-	wg := &sync.WaitGroup{}
-	wg.Add(len(configuration.Devices))
-
-	startTime := time.Now()
-	// try to connect to every device
-	for _, device := range configuration.Devices {
-		go initializeConnection(device, wg)
-	}
-	wg.Wait()
-
-	log.Infof("Initializing %d connections took %f seconds", len(configuration.Devices), time.Since(startTime).Seconds())
 	return nil
-}
-
-func initializeConnection(device *config.DeviceConfig, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	_, err := connectionManager.GetConnection(device)
-	if err != nil {
-		log.Errorf("Could not get a connection to %s: %v", device.Host, err)
-	}
 }
 
 func loadConfiguration() error {
@@ -104,7 +82,7 @@ func loadConfiguration() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse the configuration file")
 	}
-	log.Infof("Loaded %d device(s) from configuration", len(configuration.Devices))
+	log.Infof("Loaded %d static device(s) from configuration", len(configuration.GetStaticDevices()))
 	return nil
 }
 
@@ -114,7 +92,7 @@ func startServer() {
 		w.Write([]byte(`<html>
             <head><title>cisco-exporter (Version ` + version + `)</title></head>
             <body>
-            <h1>cisco-exporterr</h1>
+            <h1>cisco-exporter</h1>
             <p><a href="` + *metricsPath + `">Metrics</a></p>
             </body>
             </html>`))
@@ -131,17 +109,15 @@ func handleMetricsRequest(w http.ResponseWriter, request *http.Request) {
 	var collector *CiscoCollector
 
 	if target := request.URL.Query().Get("target"); target != "" {
-		device, found := configuration.Devices[target]
-		if !found {
+		deviceGroup := configuration.GetDeviceGroup(target)
+		if deviceGroup == nil {
 			http.Error(w, "Target not configured", 404)
 			return
 		}
-		collector = newCiscoCollector([]*config.DeviceConfig{device}, connectionManager)
+
+		collector = newCiscoCollector([]string{target}, connectionManager)
 	} else {
-		devices := make([]*config.DeviceConfig, 0)
-		for _, device := range configuration.Devices {
-			devices = append(devices, device)
-		}
+		devices := configuration.GetStaticDevices()
 		collector = newCiscoCollector(devices, connectionManager)
 	}
 	registry.MustRegister(collector)
