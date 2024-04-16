@@ -17,8 +17,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-    _ "net/http/pprof"
 )
 
 const version string = "1.4.0"
