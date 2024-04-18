@@ -7,33 +7,34 @@ import (
 	"strings"
 )
 
+var (
+	totalActiveTranslationsRegexp *regexp.Regexp = regexp.MustCompile(`Total active translations:\s+(\d+)\s+\((\d+)\s+static,\s+(\d+)\s+dynamic;`)
+	outsideInterfacesRegexp                     = regexp.MustCompile(`Outside interfaces:`)
+	insideInterfacesRegexp                      = regexp.MustCompile(`Inside interfaces:`)
+	interfaceRegexp                             = regexp.MustCompile(`^  (\S.*)`)
+	hitsMissesRegexp                            = regexp.MustCompile(`Hits: (\d+)\s+Misses: (\d+)`)
+	expiredTranslationsRegexp                   = regexp.MustCompile(`Expired translations: (\d+)`)
+	poolRegexp                                  = regexp.MustCompile(`\[Id: (\d+)\] access-list (\S+) pool (\S+) refcount (\d+)`)
+	netmaskRegexp                               = regexp.MustCompile(`pool (\S+): id (\d+), netmask (\S+)`)
+	ipRegexp                                    = regexp.MustCompile(`start (\S+) end (\S+)`)
+	poolTypeEtcRegexp                           = regexp.MustCompile(`type (\S+), total addresses (\d+), .*misses (\d+)`)
+	limitsRegexp                                = regexp.MustCompile(`max allowed (\d+), used (\d+), missed (\d+)`)
+	dropsRegexp                                 = regexp.MustCompile(`In-to-out drops: (\d+)  Out-to-in drops: (\d+)`)
+	drops1Regexp                                = regexp.MustCompile(`Pool stats drop: (\d+)  Mapping stats drop: (\d+)`)
+	portBlockAllocFailRegexp                    = regexp.MustCompile(`Port block alloc fail: (\d+)`)
+	ipAliasAddFailRegexp                        = regexp.MustCompile(`IP alias add fail: (\d+)`)
+	limitEntryAddFailRegexp                     = regexp.MustCompile(`Limit entry add fail: (\d+)`)
+
+)
+
 // ParseStatistics parses the cli outputs of `show ip nat statistics`
 func ParseStatistics(sshCtx *connector.SSHCommandContext, pools chan *Pool, statistics chan *Statistics) {
 	statistic := NewStatistics()
 	current := &Pool{}
 
-	defer func() {
-		statistics <- statistic
-	}()
-
-	totalActiveTranslationsRegexp := regexp.MustCompile(`Total active translations:\s+(\d+)\s+\((\d+)\s+static,\s+(\d+)\s+dynamic;`)
-	outsideInterfacesRegexp := regexp.MustCompile(`Outside interfaces:`)
-	insideInterfacesRegexp := regexp.MustCompile(`Inside interfaces:`)
-	interfaceRegexp := regexp.MustCompile(`^  (\S.*)`)
 	interfaceState := ""
-	hitsMissesRegexp := regexp.MustCompile(`Hits: (\d+)\s+Misses: (\d+)`)
-	expiredTranslationsRegexp := regexp.MustCompile(`Expired translations: (\d+)`)
-	poolRegexp := regexp.MustCompile(`\[Id: (\d+)\] access-list (\S+) pool (\S+) refcount (\d+)`)
-	netmaskRegexp := regexp.MustCompile(`pool (\S+): id (\d+), netmask (\S+)`)
-	ipRegexp := regexp.MustCompile(`start (\S+) end (\S+)`)
-	poolTypeEtcRegexp := regexp.MustCompile(`type (\S+), total addresses (\d+), .*misses (\d+)`)
-	limitsRegexp := regexp.MustCompile(`max allowed (\d+), used (\d+), missed (\d+)`)
-	dropsRegexp := regexp.MustCompile(`In-to-out drops: (\d+)  Out-to-in drops: (\d+)`)
-	drops1Regexp := regexp.MustCompile(`Pool stats drop: (\d+)  Mapping stats drop: (\d+)`)
-	portBlockAllocFailRegexp := regexp.MustCompile(`Port block alloc fail: (\d+)`)
-	ipAliasAddFailRegexp := regexp.MustCompile(`IP alias add fail: (\d+)`)
-	limitEntryAddFailRegexp := regexp.MustCompile(`Limit entry add fail: (\d+)`)
 
+	Outer:
 	for {
 		select {
 		case <-sshCtx.Done:
@@ -41,6 +42,7 @@ func ParseStatistics(sshCtx *connector.SSHCommandContext, pools chan *Pool, stat
 				pools <- current
 			}
 			statistics <- statistic
+			break Outer
 		case line := <-sshCtx.Output:
 			if matches := totalActiveTranslationsRegexp.FindStringSubmatch(line); matches != nil {
 				statistic.ActiveTranslations = util.Str2float64(matches[1])
