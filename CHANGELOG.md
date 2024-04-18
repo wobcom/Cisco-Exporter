@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 - 2024-04-18
+
++ Fix memory-leak in nat collector
+
 ## 1.2.0 - 2023-10-24
 + Adding support for multi-target exporter pattern
 
