@@ -32,9 +32,9 @@ func ParseStatistics(sshCtx *connector.SSHCommandContext, pools chan *Pool, stat
 	statistic := NewStatistics()
 	current := &Pool{}
 
-    interfaceState := ""
+	interfaceState := ""
 
-    Outer:
+	Outer:
 	for {
 		select {
 		case <-sshCtx.Done:
@@ -42,7 +42,7 @@ func ParseStatistics(sshCtx *connector.SSHCommandContext, pools chan *Pool, stat
 				pools <- current
 			}
 			statistics <- statistic
-            break Outer
+			break Outer
 		case line := <-sshCtx.Output:
 			if matches := totalActiveTranslationsRegexp.FindStringSubmatch(line); matches != nil {
 				statistic.ActiveTranslations = util.Str2float64(matches[1])
