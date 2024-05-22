@@ -4,6 +4,8 @@ import (
 	"github.com/gobwas/glob"
 	"io"
 	"io/ioutil"
+	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -55,18 +57,53 @@ func (o OSVersion) String() string {
 // DeviceGroupConfig describe how to connect to a remote device and what metrics
 // to extract from the remote device.
 type DeviceGroupConfig struct {
-	OSVersion         OSVersion
-	StaticName        *string   `yaml:"-"`
-	Matcher           glob.Glob `yaml:"-"`
-	Port              int       `yaml:"port,omitempty"`
-	Username          string    `yaml:"username"`
-	KeyFile           string    `yaml:"key_file,omitempty"`
-	Password          string    `yaml:"password,omitempty"`
-	ConnectTimeout    int       `yaml:"connect_timeout,omitempty"`
-	CommandTimeout    int       `yaml:"command_timeout,omitempty"`
-	EnabledCollectors []string  `yaml:"enabled_collectors,flow"`
-	Interfaces        []string  `yaml:"interfaces,flow"`
-	EnabledVLANs      []string  `yaml:"enabled_vlans,flow"`
+	OSVersion                OSVersion
+	StaticName               *string          `yaml:"-"`
+	Matcher                  glob.Glob        `yaml:"-"`
+	Port                     int              `yaml:"port,omitempty"`
+	Username                 string           `yaml:"username"`
+	KeyFile                  string           `yaml:"key_file,omitempty"`
+	Password                 string           `yaml:"password,omitempty"`
+	ConnectTimeout           int              `yaml:"connect_timeout,omitempty"`
+	CommandTimeout           int              `yaml:"command_timeout,omitempty"`
+	EnabledCollectors        []string         `yaml:"enabled_collectors,flow"`
+	Interfaces               []string         `yaml:"interfaces,flow"`
+	interfacesRegexp         []*regexp.Regexp `yaml:"-"`
+	ExcludedInterfaces       []string         `yaml:"excluded_interfaces,flow"`
+	excludedInterfacesRegexp []*regexp.Regexp `yaml:"-"`
+	EnabledVLANs             []string         `yaml:"enabled_vlans,flow"`
+}
+
+func normalizeRegex(str string) string {
+	return "^" + strings.TrimRight(strings.TrimLeft(str, "^"), "$") + "$"
+}
+
+func (dgc *DeviceGroupConfig) createInterfaceRegexp() {
+	dgc.interfacesRegexp = make([]*regexp.Regexp, len(dgc.Interfaces))
+	for i, str := range dgc.Interfaces {
+		dgc.interfacesRegexp[i] = regexp.MustCompile(normalizeRegex(str))
+	}
+	dgc.excludedInterfacesRegexp = make([]*regexp.Regexp, len(dgc.ExcludedInterfaces))
+	for i, str := range dgc.ExcludedInterfaces {
+		dgc.excludedInterfacesRegexp[i] = regexp.MustCompile(normalizeRegex(str))
+	}
+}
+
+func (dgc *DeviceGroupConfig) MatchInterface(ifName string) bool {
+	match := false
+	for _, r := range dgc.interfacesRegexp {
+		if r.MatchString(ifName) {
+			match = true
+			break
+		}
+	}
+	for _, r := range dgc.excludedInterfacesRegexp {
+		if r.MatchString(ifName) {
+			match = false
+			break
+		}
+	}
+	return match
 }
 
 func newConfig() *Config {
@@ -136,6 +173,8 @@ func Load(reader io.Reader) (*Config, error) {
 		if groupConfig.Port == 0 {
 			groupConfig.Port = defaultPort
 		}
+
+		groupConfig.createInterfaceRegexp()
 	}
 
 	return config, nil

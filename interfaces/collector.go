@@ -1,6 +1,8 @@
 package interfaces
 
 import (
+	"regexp"
+
 	"gitlab.com/wobcom/cisco-exporter/collector"
 	"gitlab.com/wobcom/cisco-exporter/connector"
 
@@ -21,6 +23,8 @@ var (
 	adminStatusDesc    *prometheus.Desc
 	operStatusDesc     *prometheus.Desc
 	errorStatusDesc    *prometheus.Desc
+
+	interfaceLineRegexp *regexp.Regexp
 )
 
 // Collector gathers counters for remote device's interfaces.
@@ -48,6 +52,8 @@ func init() {
 	adminStatusDesc = prometheus.NewDesc(prefix+"admin_up_info", "Admin operational status", l, nil)
 	operStatusDesc = prometheus.NewDesc(prefix+"up_info", "Interface operational status", l, nil)
 	errorStatusDesc = prometheus.NewDesc(prefix+"error_status_info", "Admin and operational status differ", l, nil)
+
+	interfaceLineRegexp = regexp.MustCompile(`^\s*\*?\s(\S+)[\s\d-]*$`)
 }
 
 // Describe implements the collector.Collector interface's Describe function
@@ -70,8 +76,22 @@ func (c *Collector) Collect(ctx *collector.CollectContext) {
 	}()
 
 	if len(ctx.Connection.Device.Interfaces) > 0 {
-		for _, interfaceName := range ctx.Connection.Device.Interfaces {
-			c.collect(ctx, interfaceName)
+		sshCtx := connector.NewSSHCommandContext("show interface summary")
+		go ctx.Connection.RunCommand(sshCtx)
+
+		IfCollection: for {
+			select {
+			case <-sshCtx.Done:
+				break IfCollection
+			case line := <-sshCtx.Output:
+				match := interfaceLineRegexp.FindStringSubmatch(line)
+				if len(match) > 0 {
+					ifName := match[1]
+					if ctx.Connection.Device.MatchInterface(ifName) {
+						c.collect(ctx, ifName)
+					}
+				}
+			}
 		}
 	} else {
 		c.collect(ctx, "")
