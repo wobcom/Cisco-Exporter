@@ -44,7 +44,9 @@ devices:
       - 100
     interfaces:  # optional: Some devices (BNGs) might have thousands of interfaces
       - HundredGigE0/0/0  # you can specify the interfaces to be scraped
-      - GigabitEthernet0
+      - GigabitEthernet.* # all interfaces are interpreted as regexes, that must match the whole interface name
+    excluded_interfaces: # optional: to easy limit to broad interface regexes
+      - GigabitEthernet0/1 # entries are also regexes thet must match full interface names 
     username: monitoring  # required: Username to use for SSH auth
     key_file: /path/to/a/private.key  # optional: Private key to use for SSH auth
     password: correcthorsebatterystaple  # optional: Password for SSH auth
